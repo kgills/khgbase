@@ -33,6 +33,8 @@ public class Khgbase {
     /**
      * ***********************************************************************
      * Main method
+     *
+     * @param args
      */
     public static void main(String[] args) {
 
@@ -46,20 +48,12 @@ public class Khgbase {
             System.out.print(prompt);
             /* toLowerCase() renders command case insensitive */
             userCommand = scanner.next().replace("\n", "").replace("\r", "").trim().toLowerCase();
-            // userCommand = userCommand.replace("\n", "").replace("\r", "");
             parseUserCommand(userCommand);
         }
         System.out.println("Exiting...");
 
     }
 
-    /**
-     * ***********************************************************************
-     * Method definitions
-     */
-    /**
-     * Display the splash screen
-     */
     public static void splashScreen() {
         System.out.println(line("-", 80));
         System.out.println("Welcome to KHGBaseLite"); // Display the string.
@@ -67,12 +61,6 @@ public class Khgbase {
         System.out.println(line("-", 80));
     }
 
-    /**
-     * @param s The String to be repeated
-     * @param num The number of time to repeat String s.
-     * @return String A String object, which is the String s appended to itself
-     * num times.
-     */
     public static String line(String s, int num) {
         String a = "";
         for (int i = 0; i < num; i++) {
@@ -81,9 +69,6 @@ public class Khgbase {
         return a;
     }
 
-    /**
-     * Help: Display supported commands
-     */
     public static void help() {
         System.out.println(line("*", 80));
         System.out.println("SUPPORTED COMMANDS");
@@ -102,27 +87,32 @@ public class Khgbase {
     public static void parseUserCommand(String userCommand) {
 
         /* commandTokens is an array of Strings that contains one token per array element 
-		 * The first token can be used to determine the type of command 
-		 * The other tokens can be used to pass relevant parameters to each command-specific
-		 * method inside each case statement */
-        // String[] commandTokens = userCommand.split(" ");
-        ArrayList<String> commandTokens = new ArrayList<String>(Arrays.asList(userCommand.split(" ")));
+         * The first token can be used to determine the type of command 
+         * The other tokens can be used to pass relevant parameters to each command-specific
+         * method inside each case statement */
+        ArrayList<String> commandTokens = new ArrayList<>(Arrays.asList(userCommand.split(" ")));
 
-
-        /*
-		*  This switch handles a very small list of hardcoded commands of known syntax.
-		*  You will want to rewrite this method to interpret more complex commands. 
-         */
         switch (commandTokens.get(0)) {
             case "select":
                 parseQueryString(userCommand);
                 break;
             case "drop":
-                System.out.println("STUB: Calling your method to drop items");
-                dropTable(userCommand);
+                parseDropString(userCommand);
                 break;
             case "create":
                 parseCreateString(userCommand);
+                break;
+            case "insert":
+                parseInsertString(userCommand);
+                break;
+            case "delete":
+                parseDeleteString(userCommand);
+                break;
+            case "show":
+                parseShowString(userCommand);
+                break;
+            case "update":
+                parseUpdateString(userCommand);
                 break;
             case "help":
                 help();
@@ -138,45 +128,29 @@ public class Khgbase {
         }
     }
 
-    /**
-     * Stub method for dropping tables
-     *
-     * @param dropTableString is a String of the user input
-     */
-    public static void dropTable(String dropTableString) {
-        System.out.println("STUB: Calling parseQueryString(String s) to process queries");
-        System.out.println("Parsing the string:\"" + dropTableString + "\"");
+    public static void parseDropString(String commandString) {
+        System.out.println("STUB: Method for drop");
     }
 
-    /**
-     * Stub method for executing queries
-     *
-     * @param queryString is a String of the user input
-     */
-    public static void parseQueryString(String queryString) {
-        System.out.println("STUB: Calling parseQueryString(String s) to process queries");
-        System.out.println("Parsing the string:\"" + queryString + "\"");
+    public static void parseQueryString(String commandString) {
+        System.out.println("STUB: Method for query");
     }
 
-    /**
-     * Stub method for creating new tables
-     *
-     * @param queryString is a String of the user input
-     */
-    public static void parseCreateString(String createTableString) {
+    public static void parseCreateString(String commandString) {
 
-        System.out.println("STUB: Calling your method to create a table");
-        System.out.println("Parsing the string:\"" + createTableString + "\"");
-        ArrayList<String> createTableTokens = new ArrayList<String>(Arrays.asList(createTableString.split(" ")));
+        System.out.println("STUB: Method for create");
+        ArrayList<String> tokens = new ArrayList<>(Arrays.asList(commandString.split(" ")));
+
+        // TODO: Need to check token length
 
         /* Define table file name */
-        String tableFileName = createTableTokens.get(2) + ".tbl";
+        String tableFileName = tokens.get(2) + ".tbl";
 
         /* YOUR CODE GOES HERE */
         /*  Code to create a .tbl file to contain table data */
         try {
             /*  Create RandomAccessFile tableFile in read-write mode.
-			 *  Note that this doesn't create the table file in the correct directory structure
+             *  Note that this doesn't create the table file in the correct directory structure
              */
             RandomAccessFile tableFile = new RandomAccessFile(tableFileName, "rw");
             tableFile.setLength(pageSize);
@@ -185,4 +159,23 @@ public class Khgbase {
         }
     }
 
+    public static void parseInsertString(String commandString) {
+        System.out.println("STUB: Method for insert");
+        ArrayList<String> tokens = new ArrayList<>(Arrays.asList(commandString.split(" ")));
+    }
+
+    public static void parseDeleteString(String commandString) {
+        System.out.println("STUB: Method for delete");
+        ArrayList<String> tokens = new ArrayList<>(Arrays.asList(commandString.split(" ")));
+    }
+
+    public static void parseShowString(String commandString) {
+        System.out.println("STUB: Method for show");
+        ArrayList<String> tokens = new ArrayList<>(Arrays.asList(commandString.split(" ")));
+    }
+
+    public static void parseUpdateString(String commandString) {
+        System.out.println("STUB: Method for update");
+        ArrayList<String> tokens = new ArrayList<>(Arrays.asList(commandString.split(" ")));
+    }
 }
