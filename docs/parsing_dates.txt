@@ -1,0 +1,23 @@
+/* Define the time zone for Dallas CST */
+ZoneId zoneId = ZoneId.of ( "America/Chicago" );
+
+/* Convert date and time parameters for 1974-05-27 to a ZonedDateTime object */
+ZonedDateTime zdt = ZonedDateTime.of (1974,5,27,0,0,0,0, zoneId );
+
+/* ZonedDateTime toLocalDate() method will display in a simple format */
+System.out.println(zdt.toLocalDate()); 
+
+/* Convert a ZonedDateTime object to epochSeconds
+ * This value can be store 8-byte integer to a binary
+ * file using RandomAccessFile writeLong()
+ */
+long epochSeconds = zdt.toInstant().toEpochMilli() / 1000;
+tableFile.writeLong ( epochSeconds );
+
+/* Converst Epoch Seconds back to a new ZonedDateTime object */
+ * First use RandomAccessFile readLong() to retrieve 8-byte
+ * integer from table file, then...
+ */
+long retreivedEpochSeconds = tableFile.readLong();
+Instant i = Instant.ofEpochSecond ( epochSeconds ); 
+ZonedDateTime zdt2 = ZonedDateTime.ofInstant ( i, zoneId ); 
