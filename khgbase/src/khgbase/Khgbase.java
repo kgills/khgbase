@@ -5,6 +5,7 @@
  */
 package khgbase;
 
+import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -20,6 +21,9 @@ public class Khgbase {
      * You may choose to make it user modifiable
      */
     static long pageSize = 512;
+    
+    static String tablesCatalogFile = "../data/catalog/khgbase_tables.tbl";
+    static String columnsCatalogFile = "../data/catalog/khgbase_tables.tbl";
 
     /* 
      *  The Scanner class is used to collect user commands from the prompt
@@ -43,13 +47,29 @@ public class Khgbase {
 
         /* Variable to collect user input from the prompt */
         String userCommand = "";
+        userCommand = "create khgbase_tables ( rowid int NOT_NULL, "
+                + "table_name text NOT_NULL)";
+        
+        System.out.println(userCommand);
+        parseUserCommand(userCommand);
+        userCommand = "create khgbase_columns ( rowid int NOT_NULL, "
+                + "table_name text NOT_NULL, "
+                + "column_name text NOT_NULL, "
+                + "data_type text NOT_NULL, "
+                + "ordinal_position tinyint NOT_NULL "
+                + "is_nullable text NOT_NULL)";
+        System.out.println(userCommand);
+        parseUserCommand(userCommand);
 
-        while (!isExit) {
-            System.out.print(prompt);
-            /* toLowerCase() renders command case insensitive */
-            userCommand = scanner.next().replace("\n", "").replace("\r", "").trim().toLowerCase();
-            parseUserCommand(userCommand);
-        }
+//        while (!isExit) {
+//            System.out.print(prompt);
+//            /* toLowerCase() renders command case insensitive */
+//            userCommand = scanner.next().replace("\n", "").replace("\r", "").trim().toLowerCase();
+//            
+//            userCommand = create khgbase_tables ( rowid int, table_name text);
+//            System.out.println(userCommand);
+//            parseUserCommand(userCommand);
+//        }
         System.out.println("Exiting...");
 
     }
@@ -83,6 +103,61 @@ public class Khgbase {
         System.out.println();
         System.out.println(line("*", 80));
     }
+
+    public static class Table {
+
+        String name;
+        String fileName;
+        ArrayList<String> columnNames = new ArrayList<>();
+        ArrayList<String> columnTypes = new ArrayList<>();
+        ArrayList<String> columnProps = new ArrayList<>();
+       
+    }
+
+    public static void insert(){
+        
+    }
+    
+    public static void createTable(Table table) {
+        
+        byte pageType_leafTable = 0x0D;
+        
+        
+        
+        /* YOUR CODE GOES HERE */
+        /*  Code to create a .tbl file to contain table data */
+        try {
+            /*  Create RandomAccessFile tableFile in read-write mode. 
+             Assuming that exiting files do not exist, will overwrite
+             */
+            RandomAccessFile tableFile = new RandomAccessFile(table.fileName, "rw");
+            tableFile.setLength(0);
+            tableFile.setLength(pageSize);
+            
+            tableFile.seek(0);
+            
+            // Set the file type
+            tableFile.write(pageType_leafTable);
+            
+            // Set the number of records
+            tableFile.write(0x00);
+            
+            // Initialize the start of content and right page pointer
+            for(int i = 0; i < 6; i++) {
+                tableFile.write(0xFF);
+            }
+            
+            tableFile.close();
+            
+            /* Add this table to the tables and columns catalog */
+            
+
+            /* Write the header to the table file */
+        } catch (IOException e) {
+            System.out.println(e);
+        }
+    }
+    
 
     public static void parseUserCommand(String userCommand) {
 
@@ -138,25 +213,73 @@ public class Khgbase {
 
     public static void parseCreateString(String commandString) {
 
-        System.out.println("STUB: Method for create");
+        int table_name_pos = 1;
+        Table table = new Table();
+
+        // Remove the parens
+        commandString = commandString.replace("(", "");
+        commandString = commandString.replace(")", "");
+
+        // Split the string into tokens
         ArrayList<String> tokens = new ArrayList<>(Arrays.asList(commandString.split(" ")));
 
-        // TODO: Need to check token length
-
-        /* Define table file name */
-        String tableFileName = tokens.get(2) + ".tbl";
-
-        /* YOUR CODE GOES HERE */
-        /*  Code to create a .tbl file to contain table data */
-        try {
-            /*  Create RandomAccessFile tableFile in read-write mode.
-             *  Note that this doesn't create the table file in the correct directory structure
-             */
-            RandomAccessFile tableFile = new RandomAccessFile(tableFileName, "rw");
-            tableFile.setLength(pageSize);
-        } catch (Exception e) {
-            System.out.println(e);
+        // Remove any tokens with just whitespace
+        int token_len = tokens.size();
+        for (int i = 0; i < token_len; i++) {
+            if (tokens.get(i).toString().trim().length() == 0) {
+                tokens.remove(i);
+                i--;
+                token_len--;
+            }
         }
+
+        // Add the file path
+        table.name = tokens.get(table_name_pos).toString();
+        switch (table.name) {
+            case "khgbase_tables":
+            case "khgbase_columns":
+                table.fileName = "../data/catalog/" + table.name + ".tbl";
+                break;
+            default:
+                table.fileName = "../data/user_data/" + table.name + ".tbl";
+        }
+
+        System.out.println("table_file_name = " + table.fileName);
+        System.out.println("table_name = " + table.name);
+
+        // Parse the remainer of the tokens for the column names, types, and properties
+        int columnPos = 0;
+        for (int i = table_name_pos + 1; i < token_len; i++) {
+
+            if (columnPos == 0) {
+                // Add a new columnName
+                table.columnNames.add(tokens.get(i).toString());
+                columnPos = 1;
+            } else if (columnPos == 1) {
+                // Add the columnType
+                table.columnTypes.add(tokens.get(i).toString());
+
+                if (tokens.get(i).contains(",")) {
+                    // The properties is NULL, add the default
+                    table.columnProps.add("None");
+                    columnPos = 0;
+                } else {
+
+                    if (i == token_len - 1) {
+                        // Add the none if this is the last token
+                        table.columnProps.add("None");
+                    }
+                    columnPos = 2;
+                }
+
+            } else {
+                // Add the column Properties
+                table.columnProps.add(tokens.get(i).toString());
+                columnPos = 0;
+            }
+        }
+
+        createTable(table);
     }
 
     public static void parseInsertString(String commandString) {
