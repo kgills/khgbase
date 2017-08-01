@@ -22,6 +22,33 @@ public class Khgbase {
      */
     static int pageSize = 512;
 
+    static final int RECORD_NULL_TINYINT = 0x00;
+    static final int RECORD_NULL_SMALLINT = 0x01;
+    static final int RECORD_NULL_INT = 0x02;
+    static final int RECORD_NULL_DOUBLE = 0x03;
+    static final int RECORD_TINYINT = 0x04;
+    static final int RECORD_SMALLINT = 0x05;
+    static final int RECORD_INT = 0x06;
+    static final int RECORD_BIGINT = 0x07;
+    static final int RECORD_REAL = 0x08;
+    static final int RECORD_DOUBLE = 0x09;
+    static final int RECORD_DATETIME = 0x0A;
+    static final int RECORD_DATE = 0x0B;
+    static final int RECORD_TEXT = 0x0C;
+
+    static final int RECORD_NULL_TINYINT_LEN = 1;
+    static final int RECORD_NULL_SMALLINT_LEN = 2;
+    static final int RECORD_NULL_INT_LEN = 4;
+    static final int RECORD_NULL_DOUBLE_LEN = 8;
+    static final int RECORD_TINYINT_LEN = 1;
+    static final int RECORD_SMALLINT_LEN = 2;
+    static final int RECORD_INT_LEN = 4;
+    static final int RECORD_BIGINT_LEN = 8;
+    static final int RECORD_REAL_LEN = 4;
+    static final int RECORD_DOUBLE_LEN = 8;
+    static final int RECORD_DATETIME_LEN = 8;
+    static final int RECORD_DATE_LEN = 8;
+
     static String tablesCatalogFile = "../data/catalog/khgbase_tables.tbl";
     static String columnsCatalogFile = "../data/catalog/khgbase_tables.tbl";
 
@@ -209,7 +236,7 @@ public class Khgbase {
     public static void select(Query query) {
         // TODO: Execute the query and print the results
         // TODO: Currently ignoring the where conditions
-        
+
         int numRecordOffset = 1;
         int firstRecordOffset = 8;
         int recordOffsetSize = 2;
@@ -225,52 +252,11 @@ public class Khgbase {
             default:
                 tableFileName = "../data/user_data/" + query.tableName + ".tbl";
         }
-        
+
         // Figure out which columns we need to retrieve by getting the 
         // ordinality from the columns table in the catalog file
-        
         // Open the columns table
-        try {
-            // Open the file
-            // ASSUMTION: Assuming that the file exists
-            RandomAccessFile tableFile = new RandomAccessFile(columnsCatalogFile, "r");
 
-            int lastPage = 0;
-            int pageCount = 0;
-            while(lastPage == 0) {
-                 // Get the number of records
-                int pageStartOffset = pageCount*pageSize;
-                tableFile.seek(numRecordOffset + pageStartOffset);
-                int numRecords = tableFile.readByte();
-                int contentOffset = tableFile.readShort();
-                int nextPage = tableFile.readInt();
-                
-                // Check if there is another block
-                if(nextPage == -1) {
-                    lastPage = 1;
-                }
-                
-                // Print all of the records on this page
-                for(int record = 0; record < numRecords; record++) {
-                    tableFile.seek(pageStartOffset + firstRecordOffset + record*recordOffsetSize);
-                    int recordOffset = tableFile.readShort() + pageStartOffset;
-                    tableFile.seek(recordOffset);
-                    
-                    // Get the record
-                }
-
-                System.out.println("numRecords = "+numRecords);
-            }
-           
-
-            tableFile.close();
-
-
-            /* Write the header to the table file */
-        } catch (IOException e) {
-            System.out.println(e);
-        }
-        
         // Open the table
         try {
             // Open the file
@@ -279,31 +265,103 @@ public class Khgbase {
 
             int lastPage = 0;
             int pageCount = 0;
-            while(lastPage == 0) {
-                 // Get the number of records
-                int pageStartOffset = pageCount*pageSize;
+            while (lastPage == 0) {
+                // Get the number of records
+                int pageStartOffset = pageCount * pageSize;
                 tableFile.seek(numRecordOffset + pageStartOffset);
                 int numRecords = tableFile.readByte();
                 int contentOffset = tableFile.readShort();
                 int nextPage = tableFile.readInt();
-                
+
                 // Check if there is another block
-                if(nextPage == -1) {
+                if (nextPage == -1) {
                     lastPage = 1;
                 }
-                
+
                 // Print all of the records on this page
-                for(int record = 0; record < numRecords; record++) {
-                    tableFile.seek(pageStartOffset + firstRecordOffset + record*recordOffsetSize);
+                for (int record = 0; record < numRecords; record++) {
+                    tableFile.seek(pageStartOffset + firstRecordOffset + record * recordOffsetSize);
                     int recordOffset = tableFile.readShort() + pageStartOffset;
                     tableFile.seek(recordOffset);
+
+                    int recordSize = tableFile.readShort();
+                    int rowid = tableFile.readInt();
+                    int numColumns = tableFile.read();
+
+                    System.out.println("recordSize = " + recordSize);
+                    System.out.println("rowid = " + rowid);
+                    System.out.println("num_records = " + numColumns);
+
+                    // Save the record types
+                    ArrayList<Integer> columnTypes = new ArrayList<>();
+                    for (int i = 0; i < numColumns; i++) {
+                        columnTypes.add(tableFile.read());
+                    }
+
+                    // Print the rowid
+                    System.out.print(rowid+"\t");
                     
-                    // Get the record
+                    // Get the data
+                    for (int i = 0; i < numColumns; i++) {
+                        switch (columnTypes.get(i)) {
+                            case RECORD_NULL_TINYINT:
+                                tableFile.skipBytes(RECORD_NULL_TINYINT_LEN);
+                                System.out.print("NULL");
+                                break;
+                            case RECORD_NULL_SMALLINT:
+                                tableFile.skipBytes(RECORD_NULL_SMALLINT_LEN);
+                                System.out.print("NULL");
+                                break;
+                            case RECORD_NULL_INT:
+                                tableFile.skipBytes(RECORD_NULL_INT_LEN);
+                                System.out.print("NULL");
+                                break;
+                            case RECORD_NULL_DOUBLE:
+                                tableFile.skipBytes(RECORD_NULL_DOUBLE_LEN);
+                                System.out.print("NULL");
+                                break;
+                            case RECORD_TINYINT:
+                                System.out.print(tableFile.readByte());
+                                break;
+                            case RECORD_SMALLINT:
+                                System.out.print(tableFile.readShort());
+                                break;
+                            case RECORD_INT:
+                                System.out.print(tableFile.readInt());
+                                break;
+                            case RECORD_BIGINT:
+                                System.out.print(tableFile.readLong());
+                                break;
+                            case RECORD_REAL:
+                                System.out.print(tableFile.readFloat());
+                                break;
+                            case RECORD_DOUBLE:
+                                System.out.print(tableFile.readDouble());
+                                break;
+                            case RECORD_DATETIME:
+                                // TODO: Convert this to a datetime
+                                System.out.print(tableFile.readLong());
+                                break;
+                            case RECORD_DATE:
+                                // TODO: Convert this to a date
+                                System.out.print(tableFile.readLong());
+                                break;
+                            default:
+                                // This is a text type
+                                int dataLen = columnTypes.get(i) - RECORD_TEXT;
+                                for(int j = 0; j < dataLen; j++) {
+                                    System.out.print((char)tableFile.readByte());
+                                }
+                                break;
+                        }
+                        
+                        System.out.println("\t ");
+                    }
+
                 }
 
-                System.out.println("numRecords = "+numRecords);
+                System.out.println("numRecords = " + numRecords);
             }
-           
 
             tableFile.close();
 
