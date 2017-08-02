@@ -7,6 +7,10 @@ package khgbase;
 
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.nio.file.DirectoryNotEmptyException;
+import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Scanner;
@@ -21,6 +25,10 @@ public class Khgbase {
      * You may choose to make it user modifiable
      */
     static int pageSize = 512;
+    
+    static int numRecordOffset = 1;
+    static int firstRecordOffset = 8;
+    static int recordOffsetSize = 2;
 
     static final int RECORD_NULL_TINYINT = 0x00;
     static final int RECORD_NULL_SMALLINT = 0x01;
@@ -49,8 +57,10 @@ public class Khgbase {
     static final int RECORD_DATETIME_LEN = 8;
     static final int RECORD_DATE_LEN = 8;
 
+    static String tablesCatalogTable = "khgbase_tables";
     static String tablesCatalogFile = "../data/catalog/khgbase_tables.tbl";
-    static String columnsCatalogFile = "../data/catalog/khgbase_tables.tbl";
+    static String columnsCatalogTable = "khgbase_columns";
+    static String columnsCatalogFile = "../data/catalog/khgbase_columns.tbl";
 
     /* 
      *  The Scanner class is used to collect user commands from the prompt
@@ -85,8 +95,9 @@ public class Khgbase {
 //                + "data_type text NOT NULL, "
 //                + "ordinal_position tinyint NOT NULL "
 //                + "is_nullable text NOT NULL)";
-//        userCommand = "select * from khgbase_tables";
-        userCommand = "select rowid, table_name from khgbase_tables";
+//        userCommand = "select * from khgbase_columns";
+//        userCommand = "select rowid, data_type, column_name from khgbase_columns";
+        userCommand = "drop table khgbase_columns";
         System.out.println(userCommand);
         parseUserCommand(userCommand);
 
@@ -156,6 +167,23 @@ public class Khgbase {
         ArrayList<String> columnOps = new ArrayList<>();
         ArrayList<String> columnOpValues = new ArrayList<>();
 
+        // Calculated for the column table in the query method
+        ArrayList<Integer> columnOrd = new ArrayList<>();
+    }
+
+    public static String addPath(String tableName) {
+        // Add the file path
+        String tableFileName;
+        switch (tableName) {
+            case "khgbase_tables":
+            case "khgbase_columns":
+                tableFileName = "../data/catalog/" + tableName + ".tbl";
+                break;
+            default:
+                tableFileName = "../data/user_data/" + tableName + ".tbl";
+        }
+
+        return tableFileName;
     }
 
     public static void insert(Record record) {
@@ -176,11 +204,7 @@ public class Khgbase {
 
         byte pageType_leafTable = 0x0D;
 
-        /*  Code to create a .tbl file to contain table data */
         try {
-            /*  Create RandomAccessFile tableFile in read-write mode. 
-             Assuming that exiting files do not exist, will overwrite
-             */
             RandomAccessFile tableFile = new RandomAccessFile(table.fileName, "rw");
             tableFile.setLength(0);
             tableFile.setLength(pageSize);
@@ -226,36 +250,115 @@ public class Khgbase {
 
                 insert(columnRecord);
             }
-
-            /* Write the header to the table file */
         } catch (IOException e) {
             System.out.println(e);
         }
     }
 
     public static void select(Query query) {
-        // TODO: Execute the query and print the results
         // TODO: Currently ignoring the where conditions
 
-        int numRecordOffset = 1;
-        int firstRecordOffset = 8;
-        int recordOffsetSize = 2;
-
-        // Translate the path to the table
-        // Add the file path
-        String tableFileName;
-        switch (query.tableName) {
-            case "khgbase_tables":
-            case "khgbase_columns":
-                tableFileName = "../data/catalog/" + query.tableName + ".tbl";
-                break;
-            default:
-                tableFileName = "../data/user_data/" + query.tableName + ".tbl";
-        }
+        String tableFileName = addPath(query.tableName);
 
         // Figure out which columns we need to retrieve by getting the 
         // ordinality from the columns table in the catalog file
-        // Open the columns table
+        try {
+            // Open the columns table
+            // ASSUMTION: Assuming that the file exists
+            RandomAccessFile tableFile = new RandomAccessFile(columnsCatalogFile, "r");
+            int lastPage = 0;
+            int pageCount = 0;
+            int allColumns = 0;
+            if (query.columnNames.get(0).equals("*")) {
+                allColumns = 1;
+                query.columnNames.clear();
+            }
+            int firstColumn = 1;
+            while (lastPage == 0) {
+                // Get the number of records
+                int pageStartOffset = pageCount * pageSize;
+                tableFile.seek(numRecordOffset + pageStartOffset);
+                int numRecords = tableFile.readByte();
+                int contentOffset = tableFile.readShort();
+                int nextPage = tableFile.readInt();
+
+                // Check if there is another block
+                if (nextPage == -1) {
+                    lastPage = 1;
+                }
+
+                // Print all of the records on this page
+                for (int record = 0; record < numRecords; record++) {
+                    tableFile.seek(pageStartOffset + firstRecordOffset + record * recordOffsetSize);
+                    int recordOffset = tableFile.readShort() + pageStartOffset;
+                    tableFile.seek(recordOffset);
+
+                    int recordSize = tableFile.readShort();
+                    int rowid = tableFile.readInt();
+                    int numColumns = tableFile.readByte();
+
+                    // First byte after the number of columns byte stores the type for the table_name
+                    int tableNameLen = tableFile.readByte() - 0xC;
+                    int columnNameLen = tableFile.readByte() - 0xC;
+                    int dataTypeLen = tableFile.readByte() - 0xC;
+                    tableFile.skipBytes(2); // Skip the data types for the ordinal position and is_nullable
+
+                    String tableName = "";
+                    for (int i = 0; i < tableNameLen; i++) {
+                        tableName += ((char) tableFile.readByte());
+                    }
+                    String columnName = "";
+                    for (int i = 0; i < columnNameLen; i++) {
+                        columnName += ((char) tableFile.readByte());
+                    }
+
+                    // Skip over the dataType
+                    tableFile.skipBytes(dataTypeLen);
+
+                    // Get the ordinality
+                    int ordinal = tableFile.readByte();
+
+                    // If this table matches, get the column name and the ordinality
+                    if (tableName.equals(query.tableName)) {
+
+                        // Initialize the ordinality to all zeros once we find one of the columns
+                        if (firstColumn == 1) {
+                            query.columnOrd.clear();
+                            for (int i = 0; i < numColumns; i++) {
+                                query.columnOrd.add(i, 0);
+                            }
+                            firstColumn = 0;
+                        }
+                        if (allColumns == 1) {
+                            query.columnNames.add(columnName);
+                            query.columnOrd.set(record, ordinal);
+                        } else {
+                            // Search through the column names in the query to match the ordinality
+                            for (int i = 0; i < query.columnNames.size(); i++) {
+                                if (query.columnNames.get(i).equals(columnName)) {
+                                    query.columnOrd.set(i, ordinal);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Search through the records in the columns table
+            tableFile.close();
+        } catch (IOException e) {
+            System.out.println(e);
+        }
+
+        for (int i = 0; i < query.columnNames.size(); i++) {
+
+            System.out.print(query.columnNames.get(i));
+
+            if (i != query.columnNames.size() - 1) {
+                System.out.print(", ");
+            }
+        }
+        System.out.println("");
 
         // Open the table
         try {
@@ -266,6 +369,7 @@ public class Khgbase {
             int lastPage = 0;
             int pageCount = 0;
             while (lastPage == 0) {
+
                 // Get the number of records
                 int pageStartOffset = pageCount * pageSize;
                 tableFile.seek(numRecordOffset + pageStartOffset);
@@ -288,85 +392,319 @@ public class Khgbase {
                     int rowid = tableFile.readInt();
                     int numColumns = tableFile.read();
 
-                    System.out.println("recordSize = " + recordSize);
-                    System.out.println("rowid = " + rowid);
-                    System.out.println("num_records = " + numColumns);
-
                     // Save the record types
                     ArrayList<Integer> columnTypes = new ArrayList<>();
                     for (int i = 0; i < numColumns; i++) {
                         columnTypes.add(tableFile.read());
                     }
 
-                    // Print the rowid
-                    System.out.print(rowid+"\t");
-                    
+                    int numPrinted = 0;
+                    if (query.columnOrd.contains(1)) {
+                        // Print the rowid
+                        System.out.print(rowid);
+                        numPrinted += 1;
+                        if (query.columnOrd.size() > 1) {
+                            System.out.print(", ");
+
+                        }
+                    }
+
                     // Get the data
                     for (int i = 0; i < numColumns; i++) {
+
+                        int print = 1;
+                        int printComma = 0;
+                        if (!query.columnOrd.contains(i + 2)) {
+                            print = 0;
+                        } else {
+                            numPrinted += 1;
+                        }
+
                         switch (columnTypes.get(i)) {
                             case RECORD_NULL_TINYINT:
                                 tableFile.skipBytes(RECORD_NULL_TINYINT_LEN);
-                                System.out.print("NULL");
+                                if (print == 1) {
+                                    System.out.print("NULL");
+                                }
                                 break;
                             case RECORD_NULL_SMALLINT:
                                 tableFile.skipBytes(RECORD_NULL_SMALLINT_LEN);
-                                System.out.print("NULL");
+                                if (print == 1) {
+                                    System.out.print("NULL");
+                                }
                                 break;
                             case RECORD_NULL_INT:
                                 tableFile.skipBytes(RECORD_NULL_INT_LEN);
-                                System.out.print("NULL");
+                                if (print == 1) {
+                                    System.out.print("NULL");
+                                }
                                 break;
                             case RECORD_NULL_DOUBLE:
                                 tableFile.skipBytes(RECORD_NULL_DOUBLE_LEN);
-                                System.out.print("NULL");
+                                if (print == 1) {
+                                    System.out.print("NULL");
+                                }
                                 break;
                             case RECORD_TINYINT:
-                                System.out.print(tableFile.readByte());
+                                if (print == 1) {
+                                    System.out.print(tableFile.readByte());
+                                } else {
+                                    tableFile.skipBytes(RECORD_TINYINT_LEN);
+                                }
                                 break;
                             case RECORD_SMALLINT:
-                                System.out.print(tableFile.readShort());
+                                if (print == 1) {
+                                    System.out.print(tableFile.readShort());
+                                } else {
+                                    tableFile.skipBytes(RECORD_SMALLINT_LEN);
+                                }
                                 break;
                             case RECORD_INT:
-                                System.out.print(tableFile.readInt());
+                                if (print == 1) {
+                                    System.out.print(tableFile.readInt());
+                                } else {
+                                    tableFile.skipBytes(RECORD_INT_LEN);
+                                }
                                 break;
                             case RECORD_BIGINT:
-                                System.out.print(tableFile.readLong());
+                                if (print == 1) {
+                                    System.out.print(tableFile.readLong());
+                                } else {
+                                    tableFile.skipBytes(RECORD_BIGINT_LEN);
+                                }
                                 break;
                             case RECORD_REAL:
-                                System.out.print(tableFile.readFloat());
+                                if (print == 1) {
+                                    System.out.print(tableFile.readFloat());
+                                } else {
+                                    tableFile.skipBytes(RECORD_REAL_LEN);
+                                }
                                 break;
                             case RECORD_DOUBLE:
-                                System.out.print(tableFile.readDouble());
+                                if (print == 1) {
+                                    System.out.print(tableFile.readDouble());
+                                } else {
+                                    tableFile.skipBytes(RECORD_DOUBLE_LEN);
+                                }
                                 break;
                             case RECORD_DATETIME:
-                                // TODO: Convert this to a datetime
-                                System.out.print(tableFile.readLong());
+                                if (print == 1) {
+                                    System.out.print(tableFile.readLong());
+                                } else {
+                                    tableFile.skipBytes(RECORD_DATETIME_LEN);
+                                }
                                 break;
                             case RECORD_DATE:
-                                // TODO: Convert this to a date
-                                System.out.print(tableFile.readLong());
+                                if (print == 1) {
+                                    System.out.print(tableFile.readLong());
+                                } else {
+                                    tableFile.skipBytes(RECORD_DATE_LEN);
+                                }
                                 break;
                             default:
                                 // This is a text type
                                 int dataLen = columnTypes.get(i) - RECORD_TEXT;
-                                for(int j = 0; j < dataLen; j++) {
-                                    System.out.print((char)tableFile.readByte());
+                                for (int j = 0; j < dataLen; j++) {
+                                    if (print == 1) {
+                                        System.out.print((char) tableFile.readByte());
+                                    } else {
+                                        tableFile.skipBytes(1);
+                                    }
                                 }
                                 break;
                         }
-                        
-                        System.out.println("\t ");
+                        if (print == 1) {
+                            System.out.print(", ");
+                        }
                     }
-
+                    System.out.println("");
                 }
-
-                System.out.println("numRecords = " + numRecords);
             }
 
             tableFile.close();
+        } catch (IOException e) {
+            System.out.println(e);
+        }
+    }
 
+    public static void delete(String tableName, int rowid) {
+        // Going to delete the records and move down any records above it
+        // This will pack this page but could lead to wasted space if this table is spread
+        // Across multiple pages
+        
+        // TODO: Drop this rowid from this tableName
+        System.out.println("Deleting rowid:"+rowid+" from "+tableName);
+        
+        String tableFileName = addPath(tableName);
+        
+        try {
+            // ASSUMTION: Assuming that the file exists
+            RandomAccessFile tableFile = new RandomAccessFile(tableFileName, "r");
+            int lastPage = 0;
+            int pageCount = 0;
+            int allColumns = 0;
 
-            /* Write the header to the table file */
+            while (lastPage == 0) {
+                // Get the number of records
+                int pageStartOffset = pageCount * pageSize;
+                tableFile.seek(numRecordOffset + pageStartOffset);
+                int numRecords = tableFile.readByte();
+                int contentOffset = tableFile.readShort();
+                int nextPage = tableFile.readInt();
+
+                // Check if there is another block
+                if (nextPage == -1) {
+                    lastPage = 1;
+                }
+
+                // Print all of the records on this page
+                for (int record = 0; record < numRecords; record++) {
+                    tableFile.seek(pageStartOffset + firstRecordOffset + record * recordOffsetSize);
+                    int recordOffset = tableFile.readShort() + pageStartOffset;
+                    tableFile.seek(recordOffset);
+
+                    int recordSize = tableFile.readShort();
+                    int thisRowid = tableFile.readInt();
+
+                    if (thisRowid == rowid) {
+                        
+                        // If this is the first record, move the next record 
+                        // into the first record position, if there is another on in this page
+                        
+                        // Move the record pointers up if this isn't the last one and the next
+                        // One isn't 0
+                        
+                        // Move the records above this one down if this isn't the first record in this page
+                    }
+                }
+            }
+
+            tableFile.close();
+        } catch (IOException e) {
+            System.out.println(e);
+        }
+    }
+
+    public static void drop(String tableName) {
+
+        // Attempt to delete the file for this table
+        String tableFileName = addPath(tableName);
+        System.out.println("NOT ACTUALLY DELETING FILES!");
+//        try {
+//            Files.delete(Paths.get(tableFileName));
+//        } catch (NoSuchFileException x) {
+//            System.err.format("%s: no such" + " file or directory%n", tableFileName);
+//            return;
+//        } catch (DirectoryNotEmptyException x) {
+//            System.err.format("%s not empty%n", tableFileName);
+//            return;
+//        } catch (IOException x) {
+//            // File permission problems are caught here.
+//            System.err.println(x);
+//            return;
+//        }
+
+        // Delte this table from the tables table
+        try {
+            // Open the columns table
+            // ASSUMTION: Assuming that the file exists
+            RandomAccessFile tableFile = new RandomAccessFile(tablesCatalogFile, "r");
+            int lastPage = 0;
+            int pageCount = 0;
+            int allColumns = 0;
+
+            while (lastPage == 0) {
+                // Get the number of records
+                int pageStartOffset = pageCount * pageSize;
+                tableFile.seek(numRecordOffset + pageStartOffset);
+                int numRecords = tableFile.readByte();
+                int contentOffset = tableFile.readShort();
+                int nextPage = tableFile.readInt();
+
+                // Check if there is another block
+                if (nextPage == -1) {
+                    lastPage = 1;
+                }
+
+                // Print all of the records on this page
+                for (int record = 0; record < numRecords; record++) {
+                    tableFile.seek(pageStartOffset + firstRecordOffset + record * recordOffsetSize);
+                    int recordOffset = tableFile.readShort() + pageStartOffset;
+                    tableFile.seek(recordOffset);
+
+                    int recordSize = tableFile.readShort();
+                    int rowid = tableFile.readInt();
+                    int numColumns = tableFile.readByte();
+
+                    // First byte after the number of columns byte stores the type for the table_name
+                    int tableNameLen = tableFile.readByte() - 0xC;
+
+                    String thisTableName = "";
+                    for (int i = 0; i < tableNameLen; i++) {
+                        thisTableName += ((char) tableFile.readByte());
+                    }
+
+                    // If this record matches the tablename, call the delte function with this rowid
+                    if (tableName.equals(thisTableName)) {
+                        delete(tablesCatalogTable, rowid);
+                    }
+                }
+            }
+
+            tableFile.close();
+        } catch (IOException e) {
+            System.out.println(e);
+        }
+
+        // Delete all of the columns of this table in the columns table
+        try {
+            // Open the columns table
+            // ASSUMTION: Assuming that the file exists
+            RandomAccessFile tableFile = new RandomAccessFile(columnsCatalogFile, "r");
+            int lastPage = 0;
+            int pageCount = 0;
+            int allColumns = 0;
+
+            while (lastPage == 0) {
+                // Get the number of records
+                int pageStartOffset = pageCount * pageSize;
+                tableFile.seek(numRecordOffset + pageStartOffset);
+                int numRecords = tableFile.readByte();
+                int contentOffset = tableFile.readShort();
+                int nextPage = tableFile.readInt();
+
+                // Check if there is another block
+                if (nextPage == -1) {
+                    lastPage = 1;
+                }
+
+                // Print all of the records on this page
+                for (int record = 0; record < numRecords; record++) {
+                    tableFile.seek(pageStartOffset + firstRecordOffset + record * recordOffsetSize);
+                    int recordOffset = tableFile.readShort() + pageStartOffset;
+                    tableFile.seek(recordOffset);
+
+                    int recordSize = tableFile.readShort();
+                    int rowid = tableFile.readInt();
+                    int numColumns = tableFile.readByte();
+
+                    // First byte after the number of columns byte stores the type for the table_name
+                    int tableNameLen = tableFile.readByte() - 0xC;
+                    tableFile.skipBytes(4); // Skip the data types for the ordinal position and is_nullable
+
+                    String thisTableName = "";
+                    for (int i = 0; i < tableNameLen; i++) {
+                        thisTableName += ((char) tableFile.readByte());
+                    }
+
+                    // If this record matches the tablename, call the delte function with this rowid
+                    if (tableName.equals(thisTableName)) {
+                        delete(columnsCatalogTable, rowid);
+                    }
+                }
+            }
+
+            tableFile.close();
         } catch (IOException e) {
             System.out.println(e);
         }
@@ -417,7 +755,11 @@ public class Khgbase {
     }
 
     public static void parseDropString(String commandString) {
-        System.out.println("STUB: Method for drop");
+        ArrayList<String> tokens = new ArrayList<>(Arrays.asList(commandString.split(" ")));
+        String tableName = tokens.get(2);
+        
+        System.out.println("Dropping table "+tableName);
+        drop(tableName);
     }
 
     public static void parseSelectString(String commandString) {
@@ -436,12 +778,6 @@ public class Khgbase {
         for (int i = 0; i < columns.size(); i++) {
             columns.set(i, columns.get(i).trim());
             query.columnNames.add(columns.get(i));
-        }
-
-        System.out.println("Table = " + tableName);
-        System.out.println("Columns:");
-        for (int i = 0; i < columns.size(); i++) {
-            System.out.println(columns.get(i));
         }
 
         select(query);
