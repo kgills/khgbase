@@ -7,10 +7,6 @@ package khgbase;
 
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.nio.file.DirectoryNotEmptyException;
-import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Scanner;
@@ -25,7 +21,7 @@ public class Khgbase {
      * You may choose to make it user modifiable
      */
     static int pageSize = 512;
-    
+
     static int numRecordOffset = 1;
     static int firstRecordOffset = 8;
     static int recordOffsetSize = 2;
@@ -43,6 +39,16 @@ public class Khgbase {
     static final int RECORD_DATETIME = 0x0A;
     static final int RECORD_DATE = 0x0B;
     static final int RECORD_TEXT = 0x0C;
+
+    static final String RECORD_TINYINT_STR = "TINYINT";
+    static final String RECORD_SMALLINT_STR = "SMALLINT";
+    static final String RECORD_INT_STR = "INT";
+    static final String RECORD_BIGINT_STR = "BIGINT";
+    static final String RECORD_REAL_STR = "REAL";
+    static final String RECORD_DOUBLE_STR = "DOUBLE";
+    static final String RECORD_DATETIME_STR = "DATETIME";
+    static final String RECORD_DATE_STR = "DATE";
+    static final String RECORD_TEXT_STR = "TEXT";
 
     static final int RECORD_NULL_TINYINT_LEN = 1;
     static final int RECORD_NULL_SMALLINT_LEN = 2;
@@ -96,11 +102,16 @@ public class Khgbase {
 //                + "ordinal_position tinyint NOT NULL "
 //                + "is_nullable text NOT NULL)";
 //        userCommand = "select * from khgbase_columns";
+//        System.out.println(userCommand);
+//        parseUserCommand(userCommand);
 //        userCommand = "select rowid, data_type, column_name from khgbase_columns";
-        userCommand = "drop table khgbase_columns";
+        userCommand = "create table db_test (rowid int NOT NULL, test_column text NOT NULL)";
         System.out.println(userCommand);
         parseUserCommand(userCommand);
 
+//         userCommand = "drop table db_test";
+//         System.out.println(userCommand);
+//         parseUserCommand(userCommand);
 //        while (!isExit) {
 //            System.out.print(prompt);
 //            /* toLowerCase() renders command case insensitive */
@@ -193,11 +204,161 @@ public class Khgbase {
         // TODO: Not going to do any indexing or tree structure at first for simplicity
         //          Will be a unordered linked list of blocks
 
+        System.out.println("Inserting into " + record.tableName);
+
         // Open the file
         // Seek to the next block if this one has a pointer
         // See if we have to allocate more space for this file
         // Insert the contents
         // Close the file
+        String tableFileName = addPath(record.tableName);
+
+        // Calculate the space required for this record
+        int spaceRequired = 2 + 2 + 4 + 1; // 2 for the pointer, 2 for the length, 4 for the rowid, 1 for the datalength byte
+
+        spaceRequired += record.values.size() - 1;  // One byte for each value besides the rowid
+
+        // Open the columns table to get the element types
+        try {
+            // Open the columns table
+            // ASSUMTION: Assuming that the file exists
+            RandomAccessFile tableFile = new RandomAccessFile(columnsCatalogFile, "r");
+            int lastPage = 0;
+            int pageCount = 0;
+
+            while (lastPage == 0) {
+                // Get the number of records
+                int pageStartOffset = pageCount * pageSize;
+                tableFile.seek(numRecordOffset + pageStartOffset);
+                int numRecords = tableFile.readByte();
+                int contentOffset = tableFile.readShort();
+                int nextPage = tableFile.readInt();
+
+                // Check if there is another block
+                if (nextPage == -1) {
+                    lastPage = 1;
+                }
+
+                // Print all of the records on this page
+                for (int i = 0; i < numRecords; i++) {
+                    tableFile.seek(pageStartOffset + firstRecordOffset + i * recordOffsetSize);
+                    int recordOffset = tableFile.readShort();
+                    tableFile.seek(recordOffset + pageStartOffset);
+
+                    int recordSize = tableFile.readShort();
+                    int rowid = tableFile.readInt();
+                    int numColumns = tableFile.readByte();
+
+                    // First byte after the number of columns byte stores the type for the table_name
+                    int tableNameLen = tableFile.readByte() - 0xC;
+                    int columnNameLen = tableFile.readByte() - 0xC;
+                    int dataTypeLen = tableFile.readByte() - 0xC;
+                    tableFile.skipBytes(2); // Skip the data types for the ordinal position and is_nullable
+
+                    String tableName = "";
+                    for (int j = 0; j < tableNameLen; j++) {
+                        tableName += ((char) tableFile.readByte());
+                    }
+                    String columnName = "";
+                    for (int j = 0; j < columnNameLen; j++) {
+                        columnName += ((char) tableFile.readByte());
+                    }
+
+                    // Get the dataType
+                    String dataType = "";
+                    for (int j = 0; j < dataTypeLen; j++) {
+                        dataType += ((char) tableFile.readByte());
+                    }
+                    
+                    // Get the ordinality
+                    int ordinal = tableFile.readByte();
+
+                    // If this table matches add the length of the dataType
+                    if (tableName.equals(record.tableName) && !columnName.equals("rowid")) {
+                        switch (dataType) {
+                            case RECORD_TINYINT_STR:
+                                spaceRequired += RECORD_TINYINT_LEN;
+                                break;
+                            case RECORD_SMALLINT_STR:
+                                spaceRequired += RECORD_SMALLINT_LEN;
+                                break;
+                            case RECORD_INT_STR:
+                                spaceRequired += RECORD_INT_LEN;
+                                break;
+                            case RECORD_BIGINT_STR:
+                                spaceRequired += RECORD_BIGINT_LEN;
+                                break;
+                            case RECORD_REAL_STR:
+                                spaceRequired += RECORD_REAL_LEN;
+                                break;
+                            case RECORD_DOUBLE_STR:
+                                spaceRequired += RECORD_DOUBLE_LEN;
+                                break;
+                            case RECORD_DATETIME_STR:
+                                spaceRequired += RECORD_DATETIME_LEN;
+                                break;
+                            case RECORD_DATE_STR:
+                                spaceRequired += RECORD_DATE_LEN;
+                                break;
+                            default:
+                                // This is a text type
+                                spaceRequired += record.values.get(ordinal-1).length();
+                                break;
+                        }
+                    }
+                }
+            }
+
+            tableFile.close();
+        } catch (IOException e) {
+            System.out.println(e);
+        }
+        
+        System.out.println("Space required = "+spaceRequired);
+
+        try {
+            // ASSUMTION: Assuming that the file exists
+            RandomAccessFile tableFile = new RandomAccessFile(tableFileName, "rw");
+            int lastPage = 0;
+            int pageCount = 0;
+            int allColumns = 0;
+
+            while (true) {
+                // Get the number of records
+                int pageStartOffset = pageCount * pageSize;
+                tableFile.seek(numRecordOffset + pageStartOffset);
+                int numRecords = tableFile.readByte();
+                int contentOffset = tableFile.readShort();
+                int nextPage = tableFile.readInt();
+
+                // Check if there is another block
+                if (nextPage == -1) {
+                    lastPage = 1;
+                }
+
+                // Calculate the amount of available space in this page
+                int spaceTaken = 1 + 1 + 2 + 4 + (2*numRecords);
+                int spaceAvail = contentOffset - spaceTaken;
+                
+                System.out.println("spaceAvail = "+spaceAvail);
+                
+                if(spaceRequired <= spaceAvail) {
+                    // Add to this page 
+                    
+                    break;
+                } else if(lastPage == 1) {
+                    // Add another page
+                    
+                    break;
+                } 
+                
+                // Try the next page
+            }
+
+            tableFile.close();
+        } catch (IOException e) {
+            System.out.println(e);
+        }
     }
 
     public static void createTable(Table table) {
@@ -250,6 +411,8 @@ public class Khgbase {
 
                 insert(columnRecord);
             }
+
+            tableFile.close();
         } catch (IOException e) {
             System.out.println(e);
         }
@@ -290,8 +453,8 @@ public class Khgbase {
                 // Print all of the records on this page
                 for (int record = 0; record < numRecords; record++) {
                     tableFile.seek(pageStartOffset + firstRecordOffset + record * recordOffsetSize);
-                    int recordOffset = tableFile.readShort() + pageStartOffset;
-                    tableFile.seek(recordOffset);
+                    int recordOffset = tableFile.readShort();
+                    tableFile.seek(recordOffset + pageStartOffset);
 
                     int recordSize = tableFile.readShort();
                     int rowid = tableFile.readInt();
@@ -331,7 +494,7 @@ public class Khgbase {
                         }
                         if (allColumns == 1) {
                             query.columnNames.add(columnName);
-                            query.columnOrd.set(record, ordinal);
+                            query.columnOrd.add(ordinal);
                         } else {
                             // Search through the column names in the query to match the ordinality
                             for (int i = 0; i < query.columnNames.size(); i++) {
@@ -385,8 +548,8 @@ public class Khgbase {
                 // Print all of the records on this page
                 for (int record = 0; record < numRecords; record++) {
                     tableFile.seek(pageStartOffset + firstRecordOffset + record * recordOffsetSize);
-                    int recordOffset = tableFile.readShort() + pageStartOffset;
-                    tableFile.seek(recordOffset);
+                    int recordOffset = tableFile.readShort();
+                    tableFile.seek(recordOffset + pageStartOffset);
 
                     int recordSize = tableFile.readShort();
                     int rowid = tableFile.readInt();
@@ -531,15 +694,15 @@ public class Khgbase {
         // Going to delete the records and move down any records above it
         // This will pack this page but could lead to wasted space if this table is spread
         // Across multiple pages
-        
+
         // TODO: Drop this rowid from this tableName
-        System.out.println("Deleting rowid:"+rowid+" from "+tableName);
-        
+        System.out.println("Deleting rowid:" + rowid + " from " + tableName);
+
         String tableFileName = addPath(tableName);
-        
+
         try {
             // ASSUMTION: Assuming that the file exists
-            RandomAccessFile tableFile = new RandomAccessFile(tableFileName, "r");
+            RandomAccessFile tableFile = new RandomAccessFile(tableFileName, "rw");
             int lastPage = 0;
             int pageCount = 0;
             int allColumns = 0;
@@ -557,24 +720,80 @@ public class Khgbase {
                     lastPage = 1;
                 }
 
-                // Print all of the records on this page
                 for (int record = 0; record < numRecords; record++) {
                     tableFile.seek(pageStartOffset + firstRecordOffset + record * recordOffsetSize);
-                    int recordOffset = tableFile.readShort() + pageStartOffset;
-                    tableFile.seek(recordOffset);
+                    int recordOffset = tableFile.readShort();
+                    tableFile.seek(recordOffset + pageStartOffset);
 
                     int recordSize = tableFile.readShort();
                     int thisRowid = tableFile.readInt();
 
                     if (thisRowid == rowid) {
-                        
-                        // If this is the first record, move the next record 
-                        // into the first record position, if there is another on in this page
-                        
-                        // Move the record pointers up if this isn't the last one and the next
-                        // One isn't 0
-                        
-                        // Move the records above this one down if this isn't the first record in this page
+
+                        // Shift the offsets
+                        for (int offset = 0; offset < numRecords; offset++) {
+                            tableFile.seek(pageStartOffset + firstRecordOffset + offset * recordOffsetSize);
+                            int thisOffset = tableFile.readShort();
+
+                            if (thisOffset == recordOffset) {
+                                // Zero out this offset
+                                tableFile.seek(pageStartOffset + firstRecordOffset + offset * recordOffsetSize);
+                                tableFile.writeShort(0x0000);
+
+                                // Zero out the data
+                                tableFile.seek(pageStartOffset + thisOffset);
+                                for (int i = 0; i < recordSize + 4 + 2; i++) {
+                                    tableFile.writeByte(0x00);
+                                }
+
+                            } else if (thisOffset < recordOffset) {
+                                // Move the data of the higher pointers
+
+                                // Get the record size
+                                tableFile.seek(pageStartOffset + thisOffset);
+                                int thisRecordSize = tableFile.readShort();
+                                thisRecordSize += 4 + 2;
+
+                                // Copy the data
+                                tableFile.seek(pageStartOffset + thisOffset);
+                                ArrayList<Byte> tempData = new ArrayList<>();
+                                for (int i = 0; i < thisRecordSize; i++) {
+                                    tempData.add(tableFile.readByte());
+                                }
+
+                                // Rewrite the data
+                                tableFile.seek(pageStartOffset + thisOffset + recordSize + 4 + 2);
+                                for (int i = 0; i < thisRecordSize; i++) {
+                                    tableFile.writeByte(tempData.get(i));
+                                }
+
+                                // Adjust the pointer
+                                thisOffset += (recordSize + 4 + 2); // 2 bytes for the record length, 4 for the rowid
+                                tableFile.seek(pageStartOffset + firstRecordOffset + (offset - 1) * recordOffsetSize);
+                                tableFile.writeShort(thisOffset);
+                            }
+                        }
+
+                        // Adjust the start of content offset
+                        if (recordOffset == contentOffset) {
+                            if (numRecords > 1) {
+                                // Adjust the content Offset to next offset
+                                tableFile.seek(pageStartOffset + firstRecordOffset + ((record - 1) * recordOffsetSize));
+                                int newContentOffset = tableFile.readShort();
+                                tableFile.seek(numRecordOffset + pageStartOffset + 1);
+                                tableFile.writeShort(newContentOffset);
+                            } else {
+                                // This page will be empty
+                                tableFile.seek(numRecordOffset + pageStartOffset + 1);
+                                tableFile.writeShort(0xFFFF);
+                            }
+                        }
+
+                        // Decrement the record counter
+                        tableFile.seek(numRecordOffset + pageStartOffset);
+                        tableFile.writeByte(numRecords - 1);
+                        tableFile.close();
+                        return;
                     }
                 }
             }
@@ -629,8 +848,8 @@ public class Khgbase {
                 // Print all of the records on this page
                 for (int record = 0; record < numRecords; record++) {
                     tableFile.seek(pageStartOffset + firstRecordOffset + record * recordOffsetSize);
-                    int recordOffset = tableFile.readShort() + pageStartOffset;
-                    tableFile.seek(recordOffset);
+                    int recordOffset = tableFile.readShort();
+                    tableFile.seek(recordOffset + pageStartOffset);
 
                     int recordSize = tableFile.readShort();
                     int rowid = tableFile.readInt();
@@ -681,8 +900,8 @@ public class Khgbase {
                 // Print all of the records on this page
                 for (int record = 0; record < numRecords; record++) {
                     tableFile.seek(pageStartOffset + firstRecordOffset + record * recordOffsetSize);
-                    int recordOffset = tableFile.readShort() + pageStartOffset;
-                    tableFile.seek(recordOffset);
+                    int recordOffset = tableFile.readShort();
+                    tableFile.seek(recordOffset + pageStartOffset);
 
                     int recordSize = tableFile.readShort();
                     int rowid = tableFile.readInt();
@@ -757,8 +976,8 @@ public class Khgbase {
     public static void parseDropString(String commandString) {
         ArrayList<String> tokens = new ArrayList<>(Arrays.asList(commandString.split(" ")));
         String tableName = tokens.get(2);
-        
-        System.out.println("Dropping table "+tableName);
+
+        System.out.println("Dropping table " + tableName);
         drop(tableName);
     }
 
@@ -785,7 +1004,7 @@ public class Khgbase {
 
     public static void parseCreateString(String commandString) {
 
-        int table_name_pos = 1;
+        int table_name_pos = 2;
         Table table = new Table();
 
         // Remove the parens

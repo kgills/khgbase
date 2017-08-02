@@ -63,9 +63,9 @@ public class Khgcatalog {
             
             // Write the pointers to the content
             tableFile.write(0x01);
-            tableFile.write(0xD3);
-            tableFile.write(0x01);
             tableFile.write(0xE9);
+            tableFile.write(0x01);
+            tableFile.write(0xD3);
 
             // Seek to the correct position
             tableFile.seek(pageSize - 45);
