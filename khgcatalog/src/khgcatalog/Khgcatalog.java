@@ -7,6 +7,10 @@ package khgcatalog;
 
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.nio.file.DirectoryNotEmptyException;
+import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.Paths;
 import java.util.Scanner;
 
 /**
@@ -376,6 +380,15 @@ public class Khgcatalog {
             /* Write the header to the table file */
         } catch (IOException e) {
             System.out.println(e);
+        }
+        
+       try {
+            Files.delete(Paths.get("../data/user_data/db_test.tbl"));
+        } catch (NoSuchFileException | DirectoryNotEmptyException x) {
+            
+        } catch (IOException x) {
+            // File permission problems are caught here.
+            System.err.println(x);
         }
     }
 }
