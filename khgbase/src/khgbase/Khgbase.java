@@ -26,19 +26,19 @@ public class Khgbase {
     static int firstRecordOffset = 8;
     static int recordOffsetSize = 2;
 
-    static final int RECORD_NULL_TINYINT = 0x00;
-    static final int RECORD_NULL_SMALLINT = 0x01;
-    static final int RECORD_NULL_INT = 0x02;
-    static final int RECORD_NULL_DOUBLE = 0x03;
-    static final int RECORD_TINYINT = 0x04;
-    static final int RECORD_SMALLINT = 0x05;
-    static final int RECORD_INT = 0x06;
-    static final int RECORD_BIGINT = 0x07;
-    static final int RECORD_REAL = 0x08;
-    static final int RECORD_DOUBLE = 0x09;
-    static final int RECORD_DATETIME = 0x0A;
-    static final int RECORD_DATE = 0x0B;
-    static final int RECORD_TEXT = 0x0C;
+    static final char RECORD_NULL_TINYINT = 0x00;
+    static final char RECORD_NULL_SMALLINT = 0x01;
+    static final char RECORD_NULL_INT = 0x02;
+    static final char RECORD_NULL_DOUBLE = 0x03;
+    static final char RECORD_TINYINT = 0x04;
+    static final char RECORD_SMALLINT = 0x05;
+    static final char RECORD_INT = 0x06;
+    static final char RECORD_BIGINT = 0x07;
+    static final char RECORD_REAL = 0x08;
+    static final char RECORD_DOUBLE = 0x09;
+    static final char RECORD_DATETIME = 0x0A;
+    static final char RECORD_DATE = 0x0B;
+    static final char RECORD_TEXT = 0x0C;
 
     static final String RECORD_TINYINT_STR = "TINYINT";
     static final String RECORD_SMALLINT_STR = "SMALLINT";
@@ -49,6 +49,7 @@ public class Khgbase {
     static final String RECORD_DATETIME_STR = "DATETIME";
     static final String RECORD_DATE_STR = "DATE";
     static final String RECORD_TEXT_STR = "TEXT";
+    static final String RECORD_NULL_STR = "null";
 
     static final int RECORD_NULL_TINYINT_LEN = 1;
     static final int RECORD_NULL_SMALLINT_LEN = 2;
@@ -168,6 +169,9 @@ public class Khgbase {
 
         String tableName;
         ArrayList<String> values = new ArrayList<>();
+        
+        // Used by insert to store the type of each value
+        ArrayList<Character> types = new ArrayList<>();
     }
 
     public static class Query {
@@ -278,31 +282,40 @@ public class Khgbase {
                         switch (dataType) {
                             case RECORD_TINYINT_STR:
                                 spaceRequired += RECORD_TINYINT_LEN;
+                                record.types.add(RECORD_TINYINT);
                                 break;
                             case RECORD_SMALLINT_STR:
                                 spaceRequired += RECORD_SMALLINT_LEN;
+                                record.types.add(RECORD_SMALLINT);
                                 break;
                             case RECORD_INT_STR:
                                 spaceRequired += RECORD_INT_LEN;
+                                record.types.add(RECORD_INT);
                                 break;
                             case RECORD_BIGINT_STR:
                                 spaceRequired += RECORD_BIGINT_LEN;
+                                record.types.add(RECORD_BIGINT);
                                 break;
                             case RECORD_REAL_STR:
                                 spaceRequired += RECORD_REAL_LEN;
+                                record.types.add(RECORD_REAL);
                                 break;
                             case RECORD_DOUBLE_STR:
                                 spaceRequired += RECORD_DOUBLE_LEN;
+                                record.types.add(RECORD_DOUBLE);
                                 break;
                             case RECORD_DATETIME_STR:
                                 spaceRequired += RECORD_DATETIME_LEN;
+                                record.types.add(RECORD_DATETIME);
                                 break;
                             case RECORD_DATE_STR:
                                 spaceRequired += RECORD_DATE_LEN;
+                                record.types.add(RECORD_DATE);
                                 break;
                             default:
                                 // This is a text type
                                 spaceRequired += record.values.get(ordinal-1).length();
+                                record.types.add((char)(0xC + record.values.get(ordinal-1).length()));
                                 break;
                         }
                     }
@@ -343,7 +356,70 @@ public class Khgbase {
                 System.out.println("spaceAvail = "+spaceAvail);
                 
                 if(spaceRequired <= spaceAvail) {
-                    // Add to this page 
+                    int newOffset;
+                    if(numRecords != 0) {
+                        newOffset = contentOffset - spaceRequired;   
+                    } else {
+                        newOffset = pageSize - spaceRequired;
+                    }
+                    
+                    // Add this to the record pointers
+                    tableFile.seek(pageStartOffset + firstRecordOffset + numRecords*recordOffsetSize);
+                    tableFile.writeShort(newOffset);
+
+                    // Update the content Offset
+                    tableFile.seek(numRecordOffset + pageStartOffset + 1);
+                    tableFile.writeShort(newOffset);
+
+                    // Increment the number of records
+                    tableFile.seek(numRecordOffset + pageStartOffset);
+                    tableFile.writeByte(numRecords + 1);
+                    
+                    // Seek to the start of content - spaceRequired
+                    tableFile.seek(pageStartOffset + newOffset);
+                    
+                    tableFile.writeShort(spaceRequired - 4 - 2); // Record length
+                    tableFile.writeInt(Integer.getInteger(record.values.get(0))); // rowid
+                    tableFile.writeByte(record.values.size()); // number of parameters
+                    
+                    // Write the types
+                    for(int i = 0; i < record.values.size(); i++) {
+                        
+                        if(record.values.get(i).equals("null")) {
+                            // Write the null value for this type
+                            switch (record.types.get(i)) {
+                                case RECORD_TINYINT:
+                                    tableFile.writeByte(RECORD_NULL_TINYINT);
+                                    break;
+                                case RECORD_SMALLINT:
+                                    tableFile.writeByte(RECORD_NULL_SMALLINT);
+                                    break;
+                                case RECORD_INT:
+                                case RECORD_REAL:
+                                    tableFile.writeByte(RECORD_NULL_INT);
+                                    break;
+                                case RECORD_BIGINT:
+                                case RECORD_DOUBLE:
+                                case RECORD_DATETIME:
+                                case RECORD_DATE:
+                                    tableFile.writeByte(RECORD_NULL_DOUBLE);
+                                    break;
+                                default:
+                                    // This is a text type
+                                    spaceRequired += record.values.get(ordinal-1).length();
+                                    record.types.add((char)(0xC + record.values.get(ordinal-1).length()));
+                                    break;
+                            }
+                        } else {
+                            tableFile.writeByte(record.types.get(i));    
+                        }
+                    }
+                    
+                    // Write the values
+                    for(int i = 0; i < record.values.size(); i++) {
+                        // Write all zeros if "null"
+                    }
+                    
                     
                     break;
                 } else if(lastPage == 1) {
@@ -556,9 +632,9 @@ public class Khgbase {
                     int numColumns = tableFile.read();
 
                     // Save the record types
-                    ArrayList<Integer> columnTypes = new ArrayList<>();
+                    ArrayList<Byte> columnTypes = new ArrayList<>();
                     for (int i = 0; i < numColumns; i++) {
-                        columnTypes.add(tableFile.read());
+                        columnTypes.add(tableFile.readByte());
                     }
 
                     int numPrinted = 0;
