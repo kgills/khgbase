@@ -6,6 +6,9 @@ import java.nio.file.DirectoryNotEmptyException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Scanner;
@@ -78,6 +81,8 @@ public class Khgbase {
     static String tablesCatalogFile = "../data/catalog/khgbase_tables.tbl";
     static String columnsCatalogTable = "khgbase_columns";
     static String columnsCatalogFile = "../data/catalog/khgbase_columns.tbl";
+    
+    static ZoneId zoneId = ZoneId.of ( "America/Chicago" );
 
     /* 
      *  The Scanner class is used to collect user commands from the prompt
@@ -114,6 +119,7 @@ public class Khgbase {
 //        test1();
 //        testWhere();
 //        testInsert();
+//        testDate();
 
         System.out.println("Exiting...");
 
@@ -267,6 +273,46 @@ public class Khgbase {
         parseUserCommand(userCommand);
 
         userCommand = "select * from db_test";
+        System.out.println(userCommand);
+        parseUserCommand(userCommand);
+        
+        userCommand = "drop table db_test";
+        System.out.println(userCommand);
+        parseUserCommand(userCommand);
+
+    }
+    
+    public static void testDate() {
+        
+        String userCommand;
+
+        userCommand = "create table db_test (rowid int NOT NULL, test_column text NOT NULL, test_datetime datetime)";
+        System.out.println(userCommand);
+        parseUserCommand(userCommand);
+
+        userCommand = "insert into table db_test values (1, hello_mate, 1234)";
+        System.out.println(userCommand);
+        parseUserCommand(userCommand);
+
+        userCommand = "insert into table db_test values (2, suh dude!, 5678)";
+        System.out.println(userCommand);
+        parseUserCommand(userCommand);
+
+        for(int i = 0; i < 30; i++) {
+            userCommand = "insert into table db_test values ("+(i+3)+", You are not prepared, "+(i*100)+")";
+            System.out.println(userCommand);
+            parseUserCommand(userCommand);
+        }
+        
+        userCommand = "select * from db_test";
+        System.out.println(userCommand);
+        parseUserCommand(userCommand);
+        
+        userCommand = "select * from khgbase_tables";
+        System.out.println(userCommand);
+        parseUserCommand(userCommand);
+        
+        userCommand = "select * from khgbase_columns";
         System.out.println(userCommand);
         parseUserCommand(userCommand);
         
@@ -878,7 +924,7 @@ public class Khgbase {
                                 case RECORD_BIGINT:
                                 case RECORD_DATETIME:
                                 case RECORD_DATE:
-                                    tableFile.writeLong(Long.getLong(record.values.get(i)));
+                                    tableFile.writeLong(Long.parseLong(record.values.get(i)));
                                     break;
                                 default:
                                     // This is a text type
@@ -1221,8 +1267,28 @@ public class Khgbase {
                                 }
                                 break;
                             case RECORD_DATETIME:
-                            case RECORD_BIGINT:
+                                long retreivedEpochSeconds = tableFile.readLong();
+                                Instant dateTime = Instant.ofEpochSecond ( retreivedEpochSeconds ); 
+                                ZonedDateTime zdt = ZonedDateTime.ofInstant ( dateTime, zoneId ); 
+                                if (print == 1) {
+                                    printString += zdt.toLocalDateTime();
+                                }
+                                if (!query.op.equals("") && query.opLeftOrd == (i + 2)) {
+                                    query.opLeft = Long.toString(retreivedEpochSeconds);
+                                }
+                                break;                           
                             case RECORD_DATE:
+                                long retreivedEpochSeconds0 = tableFile.readLong();
+                                Instant dateTime0 = Instant.ofEpochSecond ( retreivedEpochSeconds0 ); 
+                                ZonedDateTime zdt0 = ZonedDateTime.ofInstant ( dateTime0, zoneId ); 
+                                if (print == 1) {
+                                    printString += zdt0.toLocalDate();
+                                }
+                                if (!query.op.equals("") && query.opLeftOrd == (i + 2)) {
+                                    query.opLeft = Long.toString(retreivedEpochSeconds0);
+                                }
+                                break;
+                            case RECORD_BIGINT:
                                 long longValue = tableFile.readLong();
                                 if (print == 1) {
                                     printString += Long.toString(longValue);
