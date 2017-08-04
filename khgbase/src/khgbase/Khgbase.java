@@ -1,4 +1,3 @@
-
 package khgbase;
 
 import java.io.IOException;
@@ -23,6 +22,7 @@ public class Khgbase {
     static int pageSize = 512;
 
     static int numRecordOffset = 1;
+    static int nextPageOffset = 4;
     static int firstRecordOffset = 8;
     static int recordOffsetSize = 2;
 
@@ -50,7 +50,7 @@ public class Khgbase {
     static final String RECORD_DATE_STR = "DATE";
     static final String RECORD_TEXT_STR = "TEXT";
     static final String RECORD_NULL_STR = "null";
-    
+
     static final String OPERAND_EQUAL = "=";
     static final String OPERAND_NOT_EQUAL0 = "!=";
     static final String OPERAND_NOT_EQUAL1 = "<>";
@@ -60,7 +60,7 @@ public class Khgbase {
     static final String OPERAND_LESS_EQUAL = "<=";
     static final String OPERAND_NOT_LESS = "!<";
     static final String OPERAND_NOT_GREATER = "!>";
-    
+
     static final int RECORD_NULL_TINYINT_LEN = 1;
     static final int RECORD_NULL_SMALLINT_LEN = 2;
     static final int RECORD_NULL_INT_LEN = 4;
@@ -88,162 +88,264 @@ public class Khgbase {
      */
     static Scanner scanner = new Scanner(System.in).useDelimiter(";");
 
-    // TODO: Assuming that we start with a fresh database
     static int tableCount = 2;
     static int columnCount = 8;
-    
+
     public static void main(String[] args) {
 
+        // Update the table and column count
+        updateCounts();
+        
+        System.out.println("tableCount = "+tableCount);
+        System.out.println("columnCount = "+columnCount);
+                
         /* Display the welcome screen */
-         splashScreen();
+        splashScreen();
+        String userCommand;
         
-//        while (!isExit) {
-//            System.out.print(prompt);
-//            /* toLowerCase() renders command case insensitive */
-//            userCommand = scanner.next().replace("\n", "").replace("\r", "").trim().toLowerCase();
-//            
-//            System.out.println(userCommand);
-//            parseUserCommand(userCommand);
-//        }
-        
-        
+        while (!isExit) {
+            System.out.print(prompt);
+            /* toLowerCase() renders command case insensitive */
+            userCommand = scanner.next().replace("\n", "").replace("\r", "").trim().toLowerCase();
+            System.out.println("");
+            parseUserCommand(userCommand);
+        }
 //        test0();
 //        test1();
-        testWhere();
+//        testWhere();
+//        testInsert();
 
         System.out.println("Exiting...");
 
     }
-    
+
     public static void test1() {
         String userCommand;
-        
+
         userCommand = "show tables";
         System.out.println(userCommand);
         parseUserCommand(userCommand);
-        
+
         userCommand = "create table db_test (rowid int NOT NULL, test_column text NOT NULL)";
         System.out.println(userCommand);
         parseUserCommand(userCommand);
-        
+
         userCommand = "show tables";
         System.out.println(userCommand);
         parseUserCommand(userCommand);
-        
+
         userCommand = "drop table db_test";
         System.out.println(userCommand);
         parseUserCommand(userCommand);
-        
+
         userCommand = "show tables";
         System.out.println(userCommand);
-        parseUserCommand(userCommand);    
+        parseUserCommand(userCommand);
     }
-    
+
     public static void test0() {
         String userCommand;
-        
+
         userCommand = "create table db_test (rowid int NOT NULL, test_column text NOT NULL)";
         System.out.println(userCommand);
         parseUserCommand(userCommand);
-        
+
         userCommand = "select * from db_test";
         System.out.println(userCommand);
         parseUserCommand(userCommand);
-        
+
         userCommand = "select * from khgbase_tables";
         System.out.println(userCommand);
         parseUserCommand(userCommand);
-        
+
         userCommand = "select * from khgbase_columns";
         System.out.println(userCommand);
         parseUserCommand(userCommand);
-        
+
         userCommand = "insert into table db_test values (1, hello_mate)";
         System.out.println(userCommand);
         parseUserCommand(userCommand);
-        
+
         userCommand = "insert into table db_test values (2, suh dude!)";
         System.out.println(userCommand);
         parseUserCommand(userCommand);
-        
+
         userCommand = "insert into table db_test values (3, You are not prepared)";
         System.out.println(userCommand);
         parseUserCommand(userCommand);
-        
+
         userCommand = "select * from db_test";
         System.out.println(userCommand);
         parseUserCommand(userCommand);
-        
-        userCommand = "delete from table db_test where row_id = 2";
+
+        userCommand = "delete from table db_test where rowid = 2";
         System.out.println(userCommand);
         parseUserCommand(userCommand);
-        
+
         userCommand = "select * from db_test";
         System.out.println(userCommand);
         parseUserCommand(userCommand);
-        
+
         userCommand = "drop table db_test";
         System.out.println(userCommand);
         parseUserCommand(userCommand);
-        
+
         userCommand = "select * from khgbase_tables";
         System.out.println(userCommand);
         parseUserCommand(userCommand);
-        
+
         userCommand = "select * from khgbase_columns";
         System.out.println(userCommand);
         parseUserCommand(userCommand);
-        
+
     }
-    
+
     public static void testWhere() {
         String userCommand;
-        
+
         userCommand = "create table db_test (rowid int NOT NULL, test_column text NOT NULL)";
         System.out.println(userCommand);
         parseUserCommand(userCommand);
-        
-        
+
         userCommand = "insert into table db_test values (1, hello_mate)";
         System.out.println(userCommand);
         parseUserCommand(userCommand);
-        
+
         userCommand = "insert into table db_test values (2, suh dude!)";
         System.out.println(userCommand);
         parseUserCommand(userCommand);
-        
+
         userCommand = "insert into table db_test values (3, You are not prepared)";
         System.out.println(userCommand);
         parseUserCommand(userCommand);
-        
+
         userCommand = "select rowid, test_column from db_test where rowid !< 2";
         System.out.println(userCommand);
         parseUserCommand(userCommand);
-        
+
         userCommand = "select rowid, test_column from db_test where test_column = suh dude!";
         System.out.println(userCommand);
         parseUserCommand(userCommand);
-        
+
         userCommand = "select rowid, test_column from db_test where test_column != suh dude!";
+        System.out.println(userCommand);
+        parseUserCommand(userCommand);
+
+        userCommand = "drop table db_test";
+        System.out.println(userCommand);
+        parseUserCommand(userCommand);
+
+    }
+    
+    public static void testInsert() {
+        String userCommand;
+
+        userCommand = "create table db_test (rowid int NOT NULL, test_column text NOT NULL)";
+        System.out.println(userCommand);
+        parseUserCommand(userCommand);
+
+        userCommand = "insert into table db_test values (1, hello_mate)";
+        System.out.println(userCommand);
+        parseUserCommand(userCommand);
+
+        userCommand = "insert into table db_test values (2, suh dude!)";
+        System.out.println(userCommand);
+        parseUserCommand(userCommand);
+
+        for(int i = 0; i < 30; i++) {
+            userCommand = "insert into table db_test values ("+(i+3)+", You are not prepared)";
+            System.out.println(userCommand);
+            parseUserCommand(userCommand);
+        }
+        
+        userCommand = "select * from db_test";
+        System.out.println(userCommand);
+        parseUserCommand(userCommand);
+        
+        userCommand = "delete from table db_test where row_id = 30";
+        System.out.println(userCommand);
+        parseUserCommand(userCommand);
+
+        userCommand = "select * from db_test";
         System.out.println(userCommand);
         parseUserCommand(userCommand);
         
         userCommand = "drop table db_test";
         System.out.println(userCommand);
         parseUserCommand(userCommand);
-        
+
     }
     
+    public static void updateCounts() {
+        
+        columnCount = 0;
+        
+        try {
+            // Open the columns table
+            // ASSUMTION: Assuming that the file exists
+            RandomAccessFile tableFile = new RandomAccessFile(columnsCatalogFile, "r");
+            int lastPage = 0;
+            int pageCount = 0;
+
+            while (lastPage == 0) {
+                // Get the number of records
+                int pageStartOffset = pageCount++ * pageSize;
+                tableFile.seek(numRecordOffset + pageStartOffset);
+                int numRecords = tableFile.readByte();
+                int contentOffset = tableFile.readShort();
+                int nextPage = tableFile.readInt();
+
+                columnCount += numRecords;
+                
+                // Check if there is another block
+                if (nextPage == -1) {
+                    lastPage = 1;
+                }
+            }
+            tableFile.close();
+        } catch (IOException e) {
+            System.out.println(e);
+        }
+        
+        tableCount = 0;
+        
+        try {
+            // Open the columns table
+            // ASSUMTION: Assuming that the file exists
+            RandomAccessFile tableFile = new RandomAccessFile(tablesCatalogFile, "r");
+            int lastPage = 0;
+            int pageCount = 0;
+
+            while (lastPage == 0) {
+                // Get the number of records
+                int pageStartOffset = pageCount++ * pageSize;
+                tableFile.seek(numRecordOffset + pageStartOffset);
+                int numRecords = tableFile.readByte();
+                int contentOffset = tableFile.readShort();
+                int nextPage = tableFile.readInt();
+
+                tableCount += numRecords;
+                
+                // Check if there is another block
+                if (nextPage == -1) {
+                    lastPage = 1;
+                }
+            }
+            tableFile.close();
+        } catch (IOException e) {
+            System.out.println(e);
+        }
+    }
+
     public static int whereHolds(String opLeft, String op, String opRight, char dataType) {
-        
+
         // Figure out if the where condition holds
-        
         long opLeftInt, opRightInt;
         float opLeftFloat, opRightFloat;
         double opLeftDouble, opRightDouble;
-        
+
         // Convert the operands
-        switch(dataType) {
+        switch (dataType) {
             case RECORD_TINYINT:
             case RECORD_SMALLINT:
             case RECORD_INT:
@@ -252,191 +354,191 @@ public class Khgbase {
             case RECORD_DATE:
                 opLeftInt = Long.parseLong(opLeft);
                 opRightInt = Long.parseLong(opRight);
-                switch(op) {
+                switch (op) {
                     case OPERAND_EQUAL:
-                        if(opLeftInt == opRightInt) {
+                        if (opLeftInt == opRightInt) {
                             return 1;
                         }
-                    break;
+                        break;
                     case OPERAND_NOT_EQUAL0:
                     case OPERAND_NOT_EQUAL1:
-                        if(opLeftInt != opRightInt) {
+                        if (opLeftInt != opRightInt) {
                             return 1;
                         }
-                    break;
+                        break;
                     case OPERAND_GREATER:
-                        if(opLeftInt > opRightInt) {
+                        if (opLeftInt > opRightInt) {
                             return 1;
                         }
-                    break;
+                        break;
                     case OPERAND_LESS:
-                        if(opLeftInt < opRightInt) {
+                        if (opLeftInt < opRightInt) {
                             return 1;
                         }
-                    break;
+                        break;
                     case OPERAND_GREATER_EQUAL:
-                        if(opLeftInt >= opRightInt) {
+                        if (opLeftInt >= opRightInt) {
                             return 1;
                         }
-                    break;
+                        break;
                     case OPERAND_LESS_EQUAL:
-                        if(opLeftInt <= opRightInt) {
+                        if (opLeftInt <= opRightInt) {
                             return 1;
                         }
-                    break;
+                        break;
                     case OPERAND_NOT_LESS:
-                        if(!(opLeftInt < opRightInt)) {
+                        if (!(opLeftInt < opRightInt)) {
                             return 1;
                         }
-                    break;
+                        break;
                     case OPERAND_NOT_GREATER:
-                        if(!(opLeftInt > opRightInt)) {
+                        if (!(opLeftInt > opRightInt)) {
                             return 1;
                         }
-                    break;
+                        break;
                 }
-            break;
+                break;
             case RECORD_REAL:
                 opLeftFloat = Float.parseFloat(opLeft);
                 opRightFloat = Float.parseFloat(opRight);
-                switch(op) {
+                switch (op) {
                     case OPERAND_EQUAL:
-                        if(opLeftFloat == opRightFloat) {
+                        if (opLeftFloat == opRightFloat) {
                             return 1;
                         }
-                    break;
+                        break;
                     case OPERAND_NOT_EQUAL0:
                     case OPERAND_NOT_EQUAL1:
-                        if(opLeftFloat != opRightFloat) {
+                        if (opLeftFloat != opRightFloat) {
                             return 1;
                         }
-                    break;
+                        break;
                     case OPERAND_GREATER:
-                        if(opLeftFloat > opRightFloat) {
+                        if (opLeftFloat > opRightFloat) {
                             return 1;
                         }
-                    break;
+                        break;
                     case OPERAND_LESS:
-                        if(opLeftFloat < opRightFloat) {
+                        if (opLeftFloat < opRightFloat) {
                             return 1;
                         }
-                    break;
+                        break;
                     case OPERAND_GREATER_EQUAL:
-                        if(opLeftFloat >= opRightFloat) {
+                        if (opLeftFloat >= opRightFloat) {
                             return 1;
                         }
-                    break;
+                        break;
                     case OPERAND_LESS_EQUAL:
-                        if(opLeftFloat <= opRightFloat) {
+                        if (opLeftFloat <= opRightFloat) {
                             return 1;
                         }
-                    break;
+                        break;
                     case OPERAND_NOT_LESS:
-                        if(!(opLeftFloat < opRightFloat)) {
+                        if (!(opLeftFloat < opRightFloat)) {
                             return 1;
                         }
-                    break;
+                        break;
                     case OPERAND_NOT_GREATER:
-                        if(!(opLeftFloat > opRightFloat)) {
+                        if (!(opLeftFloat > opRightFloat)) {
                             return 1;
                         }
-                    break;
+                        break;
                 }
-            break;
+                break;
             case RECORD_DOUBLE:
                 opLeftDouble = Double.parseDouble(opLeft);
                 opRightDouble = Double.parseDouble(opRight);
-                switch(op) {
+                switch (op) {
                     case OPERAND_EQUAL:
-                        if(opLeftDouble == opRightDouble) {
+                        if (opLeftDouble == opRightDouble) {
                             return 1;
                         }
-                    break;
+                        break;
                     case OPERAND_NOT_EQUAL0:
                     case OPERAND_NOT_EQUAL1:
-                        if(opLeftDouble != opRightDouble) {
+                        if (opLeftDouble != opRightDouble) {
                             return 1;
                         }
-                    break;
+                        break;
                     case OPERAND_GREATER:
-                        if(opLeftDouble > opRightDouble) {
+                        if (opLeftDouble > opRightDouble) {
                             return 1;
                         }
-                    break;
+                        break;
                     case OPERAND_LESS:
-                        if(opLeftDouble < opRightDouble) {
+                        if (opLeftDouble < opRightDouble) {
                             return 1;
                         }
-                    break;
+                        break;
                     case OPERAND_GREATER_EQUAL:
-                        if(opLeftDouble >= opRightDouble) {
+                        if (opLeftDouble >= opRightDouble) {
                             return 1;
                         }
-                    break;
+                        break;
                     case OPERAND_LESS_EQUAL:
-                        if(opLeftDouble <= opRightDouble) {
+                        if (opLeftDouble <= opRightDouble) {
                             return 1;
                         }
-                    break;
+                        break;
                     case OPERAND_NOT_LESS:
-                        if(!(opLeftDouble < opRightDouble)) {
+                        if (!(opLeftDouble < opRightDouble)) {
                             return 1;
                         }
-                    break;
+                        break;
                     case OPERAND_NOT_GREATER:
-                        if(!(opLeftDouble > opRightDouble)) {
+                        if (!(opLeftDouble > opRightDouble)) {
                             return 1;
                         }
-                    break;
+                        break;
                 }
-            break;
-            
+                break;
+
             default:
                 // String type
-                switch(op) {
+                switch (op) {
                     case OPERAND_EQUAL:
-                        if(opLeft.equals(opRight)) {
+                        if (opLeft.equals(opRight)) {
                             return 1;
                         }
-                    break;
+                        break;
                     case OPERAND_NOT_EQUAL0:
                     case OPERAND_NOT_EQUAL1:
-                        if(!opLeft.equals(opRight)) {
+                        if (!opLeft.equals(opRight)) {
                             return 1;
                         }
-                    break;
+                        break;
                     case OPERAND_GREATER:
-                        if(opLeft.compareTo(opRight) > 0) {
+                        if (opLeft.compareTo(opRight) > 0) {
                             return 1;
                         }
-                    break;
+                        break;
                     case OPERAND_LESS:
-                        if(opLeft.compareTo(opRight) < 0) {
+                        if (opLeft.compareTo(opRight) < 0) {
                             return 1;
                         }
-                    break;
+                        break;
                     case OPERAND_GREATER_EQUAL:
-                        if(opLeft.compareTo(opRight) >= 0) {
+                        if (opLeft.compareTo(opRight) >= 0) {
                             return 1;
                         }
-                    break;
+                        break;
                     case OPERAND_LESS_EQUAL:
-                        if(opLeft.compareTo(opRight) <= 0) {
+                        if (opLeft.compareTo(opRight) <= 0) {
                             return 1;
                         }
-                    break;
+                        break;
                     case OPERAND_NOT_LESS:
-                        if(!(opLeft.compareTo(opRight) < 0)) {
+                        if (!(opLeft.compareTo(opRight) < 0)) {
                             return 1;
                         }
-                    break;
+                        break;
                     case OPERAND_NOT_GREATER:
-                        if(!(opLeft.compareTo(opRight) > 0)) {
+                        if (!(opLeft.compareTo(opRight) > 0)) {
                             return 1;
                         }
-                    break;
+                        break;
                 }
-            break;
+                break;
         }
 
         return 0;
@@ -462,11 +564,15 @@ public class Khgbase {
         System.out.println("SUPPORTED COMMANDS");
         System.out.println("All commands below are case insensitive");
         System.out.println();
-        System.out.println("\tSELECT * FROM table_name;                        Display all records in the table.");
-        System.out.println("\tSELECT * FROM table_name WHERE rowid = <value>;  Display records whose rowid is <id>.");
-        System.out.println("\tDROP TABLE table_name;                           Remove table data and its schema.");
-        System.out.println("\tHELP;                                            Show this help information");
-        System.out.println("\tEXIT;                                            Exit the program");
+        System.out.println("\tSHOW TABLES;                                              Show all of the available tables.");
+        System.out.println("\tCREATE TABLE table_name (row_id INT, ...);                Create a new table.");
+        System.out.println("\tSELECT * FROM table_name;                                 Display all records in the table.");
+        System.out.println("\tSELECT * FROM table_name WHERE rowid = <value>;           Display records whose rowid is <id>.");
+        System.out.println("\tINSERT INTO TABLE (column_list) table_name VALUES(...);   Insert record into table_name.");
+        System.out.println("\tDELETE FROM TABLE table_name WHERE rowid = key_value;     Delete record where the rowid = key_value.");
+        System.out.println("\tDROP TABLE table_name;                                    Remove table data and its schema.");
+        System.out.println("\tHELP;                                                     Show this help information");
+        System.out.println("\tEXIT;                                                     Exit the program");
         System.out.println();
         System.out.println();
         System.out.println(line("*", 80));
@@ -485,7 +591,7 @@ public class Khgbase {
 
         String tableName;
         ArrayList<String> values = new ArrayList<>();
-        
+
         // Used by insert to store the type of each value
         ArrayList<Character> types = new ArrayList<>();
     }
@@ -584,7 +690,7 @@ public class Khgbase {
                     for (int j = 0; j < dataTypeLen; j++) {
                         dataType += ((char) tableFile.readByte());
                     }
-                    
+
                     // Get the ordinality
                     int ordinal = tableFile.readByte();
 
@@ -625,8 +731,8 @@ public class Khgbase {
                                 break;
                             default:
                                 // This is a text type
-                                spaceRequired += record.values.get(ordinal-1).length();
-                                record.types.add((char)(0xC + record.values.get(ordinal-1).length()));
+                                spaceRequired += record.values.get(ordinal - 1).length();
+                                record.types.add((char) (0xC + record.values.get(ordinal - 1).length()));
                                 break;
                         }
                     }
@@ -661,25 +767,25 @@ public class Khgbase {
                 }
 
                 // Calculate the amount of available space in this page
-                int spaceTaken = 1 + 1 + 2 + 4 + (2*numRecords);
+                int spaceTaken = 1 + 1 + 2 + 4 + (2 * numRecords);
                 int spaceAvail;
-                if(contentOffset > 0) {
+                if (contentOffset > 0) {
                     spaceAvail = contentOffset - spaceTaken;
                 } else {
                     spaceAvail = pageSize - spaceTaken;
                 }
-                
-                if(spaceRequired <= spaceAvail) {
+
+                if (spaceRequired <= spaceAvail) {
                     int newOffset;
                     spaceRequired -= 2; // Take off 2 for the record pointer
-                    if(numRecords != 0) {
-                        newOffset = contentOffset - spaceRequired;   
+                    if (numRecords != 0) {
+                        newOffset = contentOffset - spaceRequired;
                     } else {
                         newOffset = pageSize - spaceRequired;
                     }
-                    
+
                     // Add this to the record pointers
-                    tableFile.seek(pageStartOffset + firstRecordOffset + numRecords*recordOffsetSize);
+                    tableFile.seek(pageStartOffset + firstRecordOffset + numRecords * recordOffsetSize);
                     tableFile.writeShort(newOffset);
 
                     // Update the content Offset
@@ -689,18 +795,18 @@ public class Khgbase {
                     // Increment the number of records
                     tableFile.seek(numRecordOffset + pageStartOffset);
                     tableFile.writeByte(numRecords + 1);
-                    
+
                     // Seek to the start of content - spaceRequired
                     tableFile.seek(pageStartOffset + newOffset);
-                    
+
                     tableFile.writeShort(spaceRequired - 4 - 2); // Record length
                     tableFile.writeInt(Integer.parseInt(record.values.get(0))); // rowid
-                    tableFile.writeByte(record.values.size()-1); // number of parameters
-                    
+                    tableFile.writeByte(record.values.size() - 1); // number of parameters
+
                     // Write the types, except for rowid
-                    for(int i = 1; i < record.values.size(); i++) {
-                        
-                        if(record.values.get(i).equals("null")) {
+                    for (int i = 1; i < record.values.size(); i++) {
+
+                        if (record.values.get(i).equals("null")) {
                             // Write the null value for this type
                             switch (record.types.get(i)) {
                                 case RECORD_TINYINT:
@@ -721,18 +827,18 @@ public class Khgbase {
                                     break;
                                 default:
                                     // This is a text type
-                                    record.types.add((char)(0xC));
+                                    record.types.add((char) (0xC));
                                     break;
                             }
                         } else {
-                            tableFile.writeByte(record.types.get(i-1)); // Skip over the rowid    
+                            tableFile.writeByte(record.types.get(i - 1)); // Skip over the rowid    
                         }
                     }
-                    
+
                     // Write the values, excpet for rowid
-                    for(int i = 1; i < record.values.size(); i++) {
+                    for (int i = 1; i < record.values.size(); i++) {
                         // Write all zeros if "null"
-                        if(record.values.get(i).equals("null")) {
+                        if (record.values.get(i).equals("null")) {
                             switch (record.types.get(i)) {
                                 case RECORD_TINYINT:
                                     tableFile.writeByte(0);
@@ -755,7 +861,7 @@ public class Khgbase {
                                     break;
                             }
                         } else {
-                            switch (record.types.get(i-1)) {
+                            switch (record.types.get(i - 1)) {
                                 case RECORD_TINYINT:
                                     tableFile.writeByte(Integer.parseInt(record.values.get(i)));
                                     break;
@@ -781,14 +887,18 @@ public class Khgbase {
                             }
                         }
                     }
-                     
+
                     break;
-                } else if(lastPage == 1) {
+                } else if (lastPage == 1) {
+                    
+                    // Add a pointer to the next page
+                    tableFile.seek((pageCount-1) * pageSize + nextPageOffset);
+                    tableFile.writeInt(pageCount * pageSize);
+                    
                     // Add another page, pageCount incremented previously in this method
-                    tableFile.setLength(pageCount * pageSize);
-                    tableFile.seek((pageCount-1)*pageSize);
-                    
-                    
+                    tableFile.setLength((pageCount+1) * pageSize);
+                    tableFile.seek(pageCount * pageSize);
+
                     tableFile.writeByte(0x0D); // Page type
                     tableFile.writeByte(0x00); // num records
                     tableFile.writeByte(0x00); // Start of content pointer
@@ -797,10 +907,8 @@ public class Khgbase {
                     tableFile.writeByte(0xFF);
                     tableFile.writeByte(0xFF);
                     tableFile.writeByte(0xFF);
-                    
-                    break;
-                } 
-                
+                }
+
                 // Try the next page
             }
 
@@ -868,7 +976,6 @@ public class Khgbase {
     }
 
     public static void select(Query query) {
-        // TODO: Currently ignoring the where conditions
 
         String tableFileName = addPath(query.tableName);
 
@@ -951,8 +1058,8 @@ public class Khgbase {
                                     query.columnOrd.set(i, ordinal);
                                 }
                             }
-                            
-                            if(query.opLeft.equals(columnName)) {
+
+                            if (query.opLeft.equals(columnName)) {
                                 query.opLeftOrd = ordinal;
                             }
                         }
@@ -965,7 +1072,7 @@ public class Khgbase {
         } catch (IOException e) {
             System.out.println(e);
         }
-        
+
         for (int i = 0; i < query.columnNames.size(); i++) {
 
             System.out.print(query.columnNames.get(i));
@@ -1012,9 +1119,9 @@ public class Khgbase {
                     // Save the record types
                     ArrayList<Character> columnTypes = new ArrayList<>();
                     for (int i = 0; i < numColumns; i++) {
-                        columnTypes.add((char)tableFile.readByte());
+                        columnTypes.add((char) tableFile.readByte());
                     }
-                    
+
                     String printString = "";
 
                     int numPrinted = 0;
@@ -1027,8 +1134,8 @@ public class Khgbase {
 
                         }
                     }
-                    
-                    if(query.opLeftOrd == 1) {
+
+                    if (!query.op.equals("") && query.opLeftOrd == 1) {
                         query.opLeft = Integer.toString(rowid);
                         query.opType = RECORD_INT;
                     }
@@ -1044,18 +1151,18 @@ public class Khgbase {
                             numPrinted += 1;
                         }
 
-                        if(query.opLeftOrd == (i+2)) {
-                            query.opType = (char)columnTypes.get(i);
+                        if (!query.op.equals("") && query.opLeftOrd == (i + 2)) {
+                            query.opType = (char) columnTypes.get(i);
                         }
-                        
+
                         switch (columnTypes.get(i)) {
-                            
+
                             case RECORD_NULL_TINYINT:
                                 tableFile.skipBytes(RECORD_NULL_TINYINT_LEN);
                                 if (print == 1) {
                                     printString += "NULL";
                                 }
-                                if(query.opLeftOrd == (i+2)) {
+                                if (!query.op.equals("") && query.opLeftOrd == (i + 2)) {
                                     query.opLeft = "NULL";
                                 }
                                 break;
@@ -1064,7 +1171,7 @@ public class Khgbase {
                                 if (print == 1) {
                                     printString += "NULL";
                                 }
-                                if(query.opLeftOrd == (i+2)) {
+                                if (!query.op.equals("") && query.opLeftOrd == (i + 2)) {
                                     query.opLeft = "NULL";
                                 }
                                 break;
@@ -1073,7 +1180,7 @@ public class Khgbase {
                                 if (print == 1) {
                                     printString += "NULL";
                                 }
-                                if(query.opLeftOrd == (i+2)) {
+                                if (!query.op.equals("") && query.opLeftOrd == (i + 2)) {
                                     query.opLeft = "NULL";
                                 }
                                 break;
@@ -1082,7 +1189,7 @@ public class Khgbase {
                                 if (print == 1) {
                                     printString += "NULL";
                                 }
-                                if(query.opLeftOrd == (i+2)) {
+                                if (!query.op.equals("") && query.opLeftOrd == (i + 2)) {
                                     query.opLeft = "NULL";
                                 }
                                 break;
@@ -1091,7 +1198,7 @@ public class Khgbase {
                                 if (print == 1) {
                                     printString += Integer.toString(tinyIntValue);
                                 }
-                                if(query.opLeftOrd == (i+2)) {
+                                if (!query.op.equals("") && query.opLeftOrd == (i + 2)) {
                                     query.opLeft = Integer.toString(tinyIntValue);
                                 }
                                 break;
@@ -1100,7 +1207,7 @@ public class Khgbase {
                                 if (print == 1) {
                                     printString += Integer.toString(smallIntValue);
                                 }
-                                if(query.opLeftOrd == (i+2)) {
+                                if (!query.op.equals("") && query.opLeftOrd == (i + 2)) {
                                     query.opLeft = Integer.toString(smallIntValue);
                                 }
                                 break;
@@ -1109,7 +1216,7 @@ public class Khgbase {
                                 if (print == 1) {
                                     printString += Integer.toString(intValue);
                                 }
-                                if(query.opLeftOrd == (i+2)) {
+                                if (!query.op.equals("") && query.opLeftOrd == (i + 2)) {
                                     query.opLeft = Integer.toString(intValue);
                                 }
                                 break;
@@ -1120,7 +1227,7 @@ public class Khgbase {
                                 if (print == 1) {
                                     printString += Long.toString(longValue);
                                 }
-                                if(query.opLeftOrd == (i+2)) {
+                                if (!query.op.equals("") && query.opLeftOrd == (i + 2)) {
                                     query.opLeft = Long.toString(longValue);
                                 }
                                 break;
@@ -1129,7 +1236,7 @@ public class Khgbase {
                                 if (print == 1) {
                                     printString += Float.toString(floatValue);
                                 }
-                                if(query.opLeftOrd == (i+2)) {
+                                if (!query.op.equals("") && query.opLeftOrd == (i + 2)) {
                                     query.opLeft = Float.toString(floatValue);
                                 }
                                 break;
@@ -1138,7 +1245,7 @@ public class Khgbase {
                                 if (print == 1) {
                                     printString += Double.toString(doubleValue);
                                 }
-                                if(query.opLeftOrd == (i+2)) {
+                                if (!query.op.equals("") && query.opLeftOrd == (i + 2)) {
                                     query.opLeft = Double.toString(doubleValue);
                                 }
                                 break;
@@ -1152,7 +1259,7 @@ public class Khgbase {
                                 if (print == 1) {
                                     printString += recordString;
                                 }
-                                if(query.opLeftOrd == (i+2)) {
+                                if (!query.op.equals("") && query.opLeftOrd == (i + 2)) {
                                     query.opLeft = recordString;
                                 }
                                 break;
@@ -1161,16 +1268,14 @@ public class Khgbase {
                             printString += ", ";
                         }
                     }
-                    
-                    if(query.op.equals("")) {
+
+                    if (query.op.equals("")) {
                         System.out.println(printString);
-                    } else {
-                        // Figure out if we want to print this record if there is a where condition
-                        if(whereHolds(query.opLeft, query.op, query.opRight, query.opType) == 1) {
-                            System.out.println(printString);
-                        }
+                    } else // Figure out if we want to print this record if there is a where condition
+                    if (whereHolds(query.opLeft, query.op, query.opRight, query.opType) == 1) {
+                        System.out.println(printString);
                     }
-                    
+
                 }
             }
 
@@ -1248,7 +1353,7 @@ public class Khgbase {
                                 for (int i = 0; i < thisRecordSize; i++) {
                                     tempData.add(tableFile.readByte());
                                 }
-                                
+
                                 // Zero out the data
                                 tableFile.seek(pageStartOffset + thisOffset);
                                 for (int i = 0; i < thisRecordSize; i++) {
@@ -1265,11 +1370,11 @@ public class Khgbase {
                                 thisOffset += (recordSize + 4 + 2); // 2 bytes for the record length, 4 for the rowid
                                 tableFile.seek(pageStartOffset + firstRecordOffset + (offset - 1) * recordOffsetSize);
                                 tableFile.writeShort(thisOffset);
-                                
+
                                 // Zero out the old pointer
                                 tableFile.seek(pageStartOffset + firstRecordOffset + offset * recordOffsetSize);
                                 tableFile.writeShort(0x0000);
-                                
+
                             }
                         }
 
@@ -1418,16 +1523,15 @@ public class Khgbase {
                     }
                 }
             }
-            for(int i = 0; i < deleteList.size(); i++) {
+            for (int i = 0; i < deleteList.size(); i++) {
                 delete(columnsCatalogTable, deleteList.get(i));
             }
-            
+
             tableFile.close();
         } catch (IOException e) {
             System.out.println(e);
         }
-       
-        
+
         tableCount--;
     }
 
@@ -1490,27 +1594,27 @@ public class Khgbase {
         commandString = commandString.replace("select ", "");
         String columnNames = commandString.split("from")[0];
         ArrayList<String> columns = new ArrayList<>(Arrays.asList(columnNames.split(",")));
-        
+
         // Trim the column names and add to the query
         for (int i = 0; i < columns.size(); i++) {
             columns.set(i, columns.get(i).trim());
             query.columnNames.add(columns.get(i));
         }
-        
+
         // Get the tableName
         ArrayList<String> tokens = new ArrayList<>(Arrays.asList(commandString.split("from")[1].trim().split(" ")));
         query.tableName = tokens.get(0);
-        
+
         // Get the operands and the operator if the were is present
-        if(tokens.size() > 1) {
+        if (tokens.size() > 1) {
             query.opLeft = tokens.get(2);
             query.op = tokens.get(3);
-            
+
             // Merge the remaining elements, for strings
             query.opRight = "";
-            for(int i = 4; i < tokens.size(); i++) {
-                query.opRight += tokens.get(i); 
-                if(i != tokens.size()-1) {
+            for (int i = 4; i < tokens.size(); i++) {
+                query.opRight += tokens.get(i);
+                if (i != tokens.size() - 1) {
                     query.opRight += " ";
                 }
 
@@ -1520,7 +1624,7 @@ public class Khgbase {
             query.op = "";
             query.opRight = "";
         }
-        
+
         select(query);
     }
 
@@ -1580,7 +1684,7 @@ public class Khgbase {
 
             } else {
                 // Add the column Properties
-                table.columnProps.add(tokens.get(i).toString().replace(",",""));
+                table.columnProps.add(tokens.get(i).toString().replace(",", ""));
                 columnPos = 0;
             }
         }
@@ -1589,7 +1693,7 @@ public class Khgbase {
     }
 
     public static void parseInsertString(String commandString) {
-         // Remove the parens
+        // Remove the parens
         commandString = commandString.replace("(", "");
         commandString = commandString.replace(")", "");
 
@@ -1608,27 +1712,27 @@ public class Khgbase {
                 token_len--;
             }
         }
-        
+
         Record record = new Record();
         record.tableName = tokens.get(3);
 
         String values = commandString.split("values")[1];
-        record.values =  new ArrayList<>(Arrays.asList(values.split(",")));
-        
-        for(int i = 0; i < record.values.size(); i++) {
+        record.values = new ArrayList<>(Arrays.asList(values.split(",")));
+
+        for (int i = 0; i < record.values.size(); i++) {
             record.values.set(i, record.values.get(i).trim());
         }
-        
+
         // Insert the record
         insert(record);
     }
 
     public static void parseDeleteString(String commandString) {
         ArrayList<String> tokens = new ArrayList<>(Arrays.asList(commandString.split(" ")));
-        
+
         String tableName = tokens.get(3);
         int rowid = Integer.parseInt(tokens.get(7));
-        
+
         delete(tableName, rowid);
     }
 
@@ -1637,7 +1741,7 @@ public class Khgbase {
         Query query = new Query();
         query.tableName = tablesCatalogTable;
         query.columnNames.add("table_name");
-        
+
         select(query);
     }
 
