@@ -50,7 +50,17 @@ public class Khgbase {
     static final String RECORD_DATE_STR = "DATE";
     static final String RECORD_TEXT_STR = "TEXT";
     static final String RECORD_NULL_STR = "null";
-
+    
+    static final String OPERAND_EQUAL = "=";
+    static final String OPERAND_NOT_EQUAL0 = "!=";
+    static final String OPERAND_NOT_EQUAL1 = "<>";
+    static final String OPERAND_GREATER = ">";
+    static final String OPERAND_LESS = "<";
+    static final String OPERAND_GREATER_EQUAL = ">=";
+    static final String OPERAND_LESS_EQUAL = "<=";
+    static final String OPERAND_NOT_LESS = "!<";
+    static final String OPERAND_NOT_GREATER = "!>";
+    
     static final int RECORD_NULL_TINYINT_LEN = 1;
     static final int RECORD_NULL_SMALLINT_LEN = 2;
     static final int RECORD_NULL_INT_LEN = 4;
@@ -98,7 +108,8 @@ public class Khgbase {
         
         
 //        test0();
-        test1();
+//        test1();
+        testWhere();
 
         System.out.println("Exiting...");
 
@@ -127,7 +138,6 @@ public class Khgbase {
         System.out.println(userCommand);
         parseUserCommand(userCommand);    
     }
-    
     
     public static void test0() {
         String userCommand;
@@ -185,6 +195,252 @@ public class Khgbase {
         parseUserCommand(userCommand);
         
     }
+    
+    public static void testWhere() {
+        String userCommand;
+        
+        userCommand = "create table db_test (rowid int NOT NULL, test_column text NOT NULL)";
+        System.out.println(userCommand);
+        parseUserCommand(userCommand);
+        
+        
+        userCommand = "insert into table db_test values (1, hello_mate)";
+        System.out.println(userCommand);
+        parseUserCommand(userCommand);
+        
+        userCommand = "insert into table db_test values (2, suh dude!)";
+        System.out.println(userCommand);
+        parseUserCommand(userCommand);
+        
+        userCommand = "insert into table db_test values (3, You are not prepared)";
+        System.out.println(userCommand);
+        parseUserCommand(userCommand);
+        
+        userCommand = "select rowid, test_column from db_test where rowid !< 2";
+        System.out.println(userCommand);
+        parseUserCommand(userCommand);
+        
+        userCommand = "select rowid, test_column from db_test where test_column = suh dude!";
+        System.out.println(userCommand);
+        parseUserCommand(userCommand);
+        
+        userCommand = "select rowid, test_column from db_test where test_column != suh dude!";
+        System.out.println(userCommand);
+        parseUserCommand(userCommand);
+        
+        userCommand = "drop table db_test";
+        System.out.println(userCommand);
+        parseUserCommand(userCommand);
+        
+    }
+    
+    public static int whereHolds(String opLeft, String op, String opRight, char dataType) {
+        
+        // Figure out if the where condition holds
+        
+        long opLeftInt, opRightInt;
+        float opLeftFloat, opRightFloat;
+        double opLeftDouble, opRightDouble;
+        
+        // Convert the operands
+        switch(dataType) {
+            case RECORD_TINYINT:
+            case RECORD_SMALLINT:
+            case RECORD_INT:
+            case RECORD_BIGINT:
+            case RECORD_DATETIME:
+            case RECORD_DATE:
+                opLeftInt = Long.parseLong(opLeft);
+                opRightInt = Long.parseLong(opRight);
+                switch(op) {
+                    case OPERAND_EQUAL:
+                        if(opLeftInt == opRightInt) {
+                            return 1;
+                        }
+                    break;
+                    case OPERAND_NOT_EQUAL0:
+                    case OPERAND_NOT_EQUAL1:
+                        if(opLeftInt != opRightInt) {
+                            return 1;
+                        }
+                    break;
+                    case OPERAND_GREATER:
+                        if(opLeftInt > opRightInt) {
+                            return 1;
+                        }
+                    break;
+                    case OPERAND_LESS:
+                        if(opLeftInt < opRightInt) {
+                            return 1;
+                        }
+                    break;
+                    case OPERAND_GREATER_EQUAL:
+                        if(opLeftInt >= opRightInt) {
+                            return 1;
+                        }
+                    break;
+                    case OPERAND_LESS_EQUAL:
+                        if(opLeftInt <= opRightInt) {
+                            return 1;
+                        }
+                    break;
+                    case OPERAND_NOT_LESS:
+                        if(!(opLeftInt < opRightInt)) {
+                            return 1;
+                        }
+                    break;
+                    case OPERAND_NOT_GREATER:
+                        if(!(opLeftInt > opRightInt)) {
+                            return 1;
+                        }
+                    break;
+                }
+            break;
+            case RECORD_REAL:
+                opLeftFloat = Float.parseFloat(opLeft);
+                opRightFloat = Float.parseFloat(opRight);
+                switch(op) {
+                    case OPERAND_EQUAL:
+                        if(opLeftFloat == opRightFloat) {
+                            return 1;
+                        }
+                    break;
+                    case OPERAND_NOT_EQUAL0:
+                    case OPERAND_NOT_EQUAL1:
+                        if(opLeftFloat != opRightFloat) {
+                            return 1;
+                        }
+                    break;
+                    case OPERAND_GREATER:
+                        if(opLeftFloat > opRightFloat) {
+                            return 1;
+                        }
+                    break;
+                    case OPERAND_LESS:
+                        if(opLeftFloat < opRightFloat) {
+                            return 1;
+                        }
+                    break;
+                    case OPERAND_GREATER_EQUAL:
+                        if(opLeftFloat >= opRightFloat) {
+                            return 1;
+                        }
+                    break;
+                    case OPERAND_LESS_EQUAL:
+                        if(opLeftFloat <= opRightFloat) {
+                            return 1;
+                        }
+                    break;
+                    case OPERAND_NOT_LESS:
+                        if(!(opLeftFloat < opRightFloat)) {
+                            return 1;
+                        }
+                    break;
+                    case OPERAND_NOT_GREATER:
+                        if(!(opLeftFloat > opRightFloat)) {
+                            return 1;
+                        }
+                    break;
+                }
+            break;
+            case RECORD_DOUBLE:
+                opLeftDouble = Double.parseDouble(opLeft);
+                opRightDouble = Double.parseDouble(opRight);
+                switch(op) {
+                    case OPERAND_EQUAL:
+                        if(opLeftDouble == opRightDouble) {
+                            return 1;
+                        }
+                    break;
+                    case OPERAND_NOT_EQUAL0:
+                    case OPERAND_NOT_EQUAL1:
+                        if(opLeftDouble != opRightDouble) {
+                            return 1;
+                        }
+                    break;
+                    case OPERAND_GREATER:
+                        if(opLeftDouble > opRightDouble) {
+                            return 1;
+                        }
+                    break;
+                    case OPERAND_LESS:
+                        if(opLeftDouble < opRightDouble) {
+                            return 1;
+                        }
+                    break;
+                    case OPERAND_GREATER_EQUAL:
+                        if(opLeftDouble >= opRightDouble) {
+                            return 1;
+                        }
+                    break;
+                    case OPERAND_LESS_EQUAL:
+                        if(opLeftDouble <= opRightDouble) {
+                            return 1;
+                        }
+                    break;
+                    case OPERAND_NOT_LESS:
+                        if(!(opLeftDouble < opRightDouble)) {
+                            return 1;
+                        }
+                    break;
+                    case OPERAND_NOT_GREATER:
+                        if(!(opLeftDouble > opRightDouble)) {
+                            return 1;
+                        }
+                    break;
+                }
+            break;
+            
+            default:
+                // String type
+                switch(op) {
+                    case OPERAND_EQUAL:
+                        if(opLeft.equals(opRight)) {
+                            return 1;
+                        }
+                    break;
+                    case OPERAND_NOT_EQUAL0:
+                    case OPERAND_NOT_EQUAL1:
+                        if(!opLeft.equals(opRight)) {
+                            return 1;
+                        }
+                    break;
+                    case OPERAND_GREATER:
+                        if(opLeft.compareTo(opRight) > 0) {
+                            return 1;
+                        }
+                    break;
+                    case OPERAND_LESS:
+                        if(opLeft.compareTo(opRight) < 0) {
+                            return 1;
+                        }
+                    break;
+                    case OPERAND_GREATER_EQUAL:
+                        if(opLeft.compareTo(opRight) >= 0) {
+                            return 1;
+                        }
+                    break;
+                    case OPERAND_LESS_EQUAL:
+                        if(opLeft.compareTo(opRight) <= 0) {
+                            return 1;
+                        }
+                    break;
+                    case OPERAND_NOT_LESS:
+                        if(!(opLeft.compareTo(opRight) < 0)) {
+                            return 1;
+                        }
+                    break;
+                    case OPERAND_NOT_GREATER:
+                        if(!(opLeft.compareTo(opRight) > 0)) {
+                            return 1;
+                        }
+                    break;
+                }
+            break;
+        }
+
+        return 0;
+    }
 
     public static void splashScreen() {
         System.out.println(line("-", 80));
@@ -239,8 +495,11 @@ public class Khgbase {
         String tableName = "";
         ArrayList<String> columnNames = new ArrayList<>();
         ArrayList<String> columnWhere = new ArrayList<>();
-        ArrayList<String> columnOps = new ArrayList<>();
-        ArrayList<String> columnOpValues = new ArrayList<>();
+        String opLeft = "";
+        String op = "";
+        String opRight = "";
+        Integer opLeftOrd;
+        char opType;
 
         // Calculated for the column table in the query method
         ArrayList<Integer> columnOrd = new ArrayList<>();
@@ -692,6 +951,10 @@ public class Khgbase {
                                     query.columnOrd.set(i, ordinal);
                                 }
                             }
+                            
+                            if(query.opLeft.equals(columnName)) {
+                                query.opLeftOrd = ordinal;
+                            }
                         }
                     }
                 }
@@ -702,7 +965,7 @@ public class Khgbase {
         } catch (IOException e) {
             System.out.println(e);
         }
-
+        
         for (int i = 0; i < query.columnNames.size(); i++) {
 
             System.out.print(query.columnNames.get(i));
@@ -747,20 +1010,27 @@ public class Khgbase {
                     int numColumns = tableFile.read();
 
                     // Save the record types
-                    ArrayList<Byte> columnTypes = new ArrayList<>();
+                    ArrayList<Character> columnTypes = new ArrayList<>();
                     for (int i = 0; i < numColumns; i++) {
-                        columnTypes.add(tableFile.readByte());
+                        columnTypes.add((char)tableFile.readByte());
                     }
+                    
+                    String printString = "";
 
                     int numPrinted = 0;
                     if (query.columnOrd.contains(1)) {
                         // Print the rowid
-                        System.out.print(rowid);
+                        printString += rowid;
                         numPrinted += 1;
                         if (query.columnOrd.size() > 1) {
-                            System.out.print(", ");
+                            printString += ", ";
 
                         }
+                    }
+                    
+                    if(query.opLeftOrd == 1) {
+                        query.opLeft = Integer.toString(rowid);
+                        query.opType = RECORD_INT;
                     }
 
                     // Get the data
@@ -774,104 +1044,133 @@ public class Khgbase {
                             numPrinted += 1;
                         }
 
+                        if(query.opLeftOrd == (i+2)) {
+                            query.opType = (char)columnTypes.get(i);
+                        }
+                        
                         switch (columnTypes.get(i)) {
+                            
                             case RECORD_NULL_TINYINT:
                                 tableFile.skipBytes(RECORD_NULL_TINYINT_LEN);
                                 if (print == 1) {
-                                    System.out.print("NULL");
+                                    printString += "NULL";
+                                }
+                                if(query.opLeftOrd == (i+2)) {
+                                    query.opLeft = "NULL";
                                 }
                                 break;
                             case RECORD_NULL_SMALLINT:
                                 tableFile.skipBytes(RECORD_NULL_SMALLINT_LEN);
                                 if (print == 1) {
-                                    System.out.print("NULL");
+                                    printString += "NULL";
+                                }
+                                if(query.opLeftOrd == (i+2)) {
+                                    query.opLeft = "NULL";
                                 }
                                 break;
                             case RECORD_NULL_INT:
                                 tableFile.skipBytes(RECORD_NULL_INT_LEN);
                                 if (print == 1) {
-                                    System.out.print("NULL");
+                                    printString += "NULL";
+                                }
+                                if(query.opLeftOrd == (i+2)) {
+                                    query.opLeft = "NULL";
                                 }
                                 break;
                             case RECORD_NULL_DOUBLE:
                                 tableFile.skipBytes(RECORD_NULL_DOUBLE_LEN);
                                 if (print == 1) {
-                                    System.out.print("NULL");
+                                    printString += "NULL";
+                                }
+                                if(query.opLeftOrd == (i+2)) {
+                                    query.opLeft = "NULL";
                                 }
                                 break;
                             case RECORD_TINYINT:
+                                Byte tinyIntValue = tableFile.readByte();
                                 if (print == 1) {
-                                    System.out.print(tableFile.readByte());
-                                } else {
-                                    tableFile.skipBytes(RECORD_TINYINT_LEN);
+                                    printString += Integer.toString(tinyIntValue);
+                                }
+                                if(query.opLeftOrd == (i+2)) {
+                                    query.opLeft = Integer.toString(tinyIntValue);
                                 }
                                 break;
                             case RECORD_SMALLINT:
+                                Short smallIntValue = tableFile.readShort();
                                 if (print == 1) {
-                                    System.out.print(tableFile.readShort());
-                                } else {
-                                    tableFile.skipBytes(RECORD_SMALLINT_LEN);
+                                    printString += Integer.toString(smallIntValue);
+                                }
+                                if(query.opLeftOrd == (i+2)) {
+                                    query.opLeft = Integer.toString(smallIntValue);
                                 }
                                 break;
                             case RECORD_INT:
+                                int intValue = tableFile.readInt();
                                 if (print == 1) {
-                                    System.out.print(tableFile.readInt());
-                                } else {
-                                    tableFile.skipBytes(RECORD_INT_LEN);
+                                    printString += Integer.toString(intValue);
                                 }
-                                break;
-                            case RECORD_BIGINT:
-                                if (print == 1) {
-                                    System.out.print(tableFile.readLong());
-                                } else {
-                                    tableFile.skipBytes(RECORD_BIGINT_LEN);
-                                }
-                                break;
-                            case RECORD_REAL:
-                                if (print == 1) {
-                                    System.out.print(tableFile.readFloat());
-                                } else {
-                                    tableFile.skipBytes(RECORD_REAL_LEN);
-                                }
-                                break;
-                            case RECORD_DOUBLE:
-                                if (print == 1) {
-                                    System.out.print(tableFile.readDouble());
-                                } else {
-                                    tableFile.skipBytes(RECORD_DOUBLE_LEN);
+                                if(query.opLeftOrd == (i+2)) {
+                                    query.opLeft = Integer.toString(intValue);
                                 }
                                 break;
                             case RECORD_DATETIME:
+                            case RECORD_BIGINT:
+                            case RECORD_DATE:
+                                long longValue = tableFile.readLong();
                                 if (print == 1) {
-                                    System.out.print(tableFile.readLong());
-                                } else {
-                                    tableFile.skipBytes(RECORD_DATETIME_LEN);
+                                    printString += Long.toString(longValue);
+                                }
+                                if(query.opLeftOrd == (i+2)) {
+                                    query.opLeft = Long.toString(longValue);
                                 }
                                 break;
-                            case RECORD_DATE:
+                            case RECORD_REAL:
+                                float floatValue = tableFile.readFloat();
                                 if (print == 1) {
-                                    System.out.print(tableFile.readLong());
-                                } else {
-                                    tableFile.skipBytes(RECORD_DATE_LEN);
+                                    printString += Float.toString(floatValue);
+                                }
+                                if(query.opLeftOrd == (i+2)) {
+                                    query.opLeft = Float.toString(floatValue);
+                                }
+                                break;
+                            case RECORD_DOUBLE:
+                                double doubleValue = tableFile.readDouble();
+                                if (print == 1) {
+                                    printString += Double.toString(doubleValue);
+                                }
+                                if(query.opLeftOrd == (i+2)) {
+                                    query.opLeft = Double.toString(doubleValue);
                                 }
                                 break;
                             default:
                                 // This is a text type
+                                String recordString = "";
                                 int dataLen = columnTypes.get(i) - RECORD_TEXT;
                                 for (int j = 0; j < dataLen; j++) {
-                                    if (print == 1) {
-                                        System.out.print((char) tableFile.readByte());
-                                    } else {
-                                        tableFile.skipBytes(1);
-                                    }
+                                    recordString += (char) tableFile.readByte();
+                                }
+                                if (print == 1) {
+                                    printString += recordString;
+                                }
+                                if(query.opLeftOrd == (i+2)) {
+                                    query.opLeft = recordString;
                                 }
                                 break;
                         }
                         if (print == 1) {
-                            System.out.print(", ");
+                            printString += ", ";
                         }
                     }
-                    System.out.println("");
+                    
+                    if(query.op.equals("")) {
+                        System.out.println(printString);
+                    } else {
+                        // Figure out if we want to print this record if there is a where condition
+                        if(whereHolds(query.opLeft, query.op, query.opRight, query.opType) == 1) {
+                            System.out.println(printString);
+                        }
+                    }
+                    
                 }
             }
 
@@ -1191,15 +1490,37 @@ public class Khgbase {
         commandString = commandString.replace("select ", "");
         String columnNames = commandString.split("from")[0];
         ArrayList<String> columns = new ArrayList<>(Arrays.asList(columnNames.split(",")));
-        String tableName = commandString.split("from")[1].trim();
-
-        query.tableName = tableName;
+        
         // Trim the column names and add to the query
         for (int i = 0; i < columns.size(); i++) {
             columns.set(i, columns.get(i).trim());
             query.columnNames.add(columns.get(i));
         }
+        
+        // Get the tableName
+        ArrayList<String> tokens = new ArrayList<>(Arrays.asList(commandString.split("from")[1].trim().split(" ")));
+        query.tableName = tokens.get(0);
+        
+        // Get the operands and the operator if the were is present
+        if(tokens.size() > 1) {
+            query.opLeft = tokens.get(2);
+            query.op = tokens.get(3);
+            
+            // Merge the remaining elements, for strings
+            query.opRight = "";
+            for(int i = 4; i < tokens.size(); i++) {
+                query.opRight += tokens.get(i); 
+                if(i != tokens.size()-1) {
+                    query.opRight += " ";
+                }
 
+            }
+        } else {
+            query.opLeft = "";
+            query.op = "";
+            query.opRight = "";
+        }
+        
         select(query);
     }
 
